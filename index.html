@@ -109,6 +109,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -842,7 +843,7 @@ return null;}
   profStripEl.insertAdjacentElement('afterend',xbar);
   var wb=document.createElement('div');wb.id='v3wb';wb.style.display='none';xbar.insertAdjacentElement('afterend',wb);
   var xchat=document.createElement('div');xchat.className='chat';xchat.style.display='none';goalChat.insertAdjacentElement('afterend',xchat);
-  function xIntro(){xchat.innerHTML='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bub">即刻找房：直接说条件或问题，我解析成筛选条件马上出结果，不问诊、不记档案。想让我以后持续帮你盯新房源，切到「长期盯房」。</div></div>';var w=document.createElement('div');w.className='qr';V3.examples.forEach(function(t){var b=document.createElement('button');b.className='q';b.textContent=t;b.onclick=function(){inp.value=t;doSend();};w.appendChild(b);});xchat.appendChild(w);}
+  function xIntro(){xchat.innerHTML='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bub">即刻找房：直接跟我说您的找房条件或问题，我会即刻给您推荐或解答。若想让我持续按您的需求帮您寻找合适的房源，请切到「长期盯房」。</div></div>';var w=document.createElement('div');w.className='qr';V3.examples.forEach(function(t){var b=document.createElement('button');b.className='q';b.textContent=t;b.onclick=function(){inp.value=t;doSend();};w.appendChild(b);});xchat.appendChild(w);}
   function switchMode(m){if(m===mode)return;modeState[mode].answer=answer;modeState[mode].lastResult=lastResult;mode=m;answer=modeState[m].answer;lastResult=modeState[m].lastResult;
     if(m==='explore'){profile=exploreProfile;list=xchat;goalChat.style.display='none';xchat.style.display='flex';profStripEl.style.display='none';xbar.style.display='flex';wb.style.display='none';if(!xchat.children.length)xIntro();}
     else{profile=goalProfile;list=goalChat;xchat.style.display='none';goalChat.style.display='flex';profStripEl.style.display='flex';xbar.style.display='none';renderWb();}
