@@ -115,6 +115,8 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -831,7 +833,7 @@ return null;}
   /* ===================== v3 layer（PRD v3 · 2026-10-20）=====================
      Explore / Goal 两种模式、负向档案（不考虑清单）、三段式房源批次、找房 Goal 定时推送、
      房源详情页「问 AI」、经纪授权交接。只挂钩既有引擎，不改原函数体。 */
-  var V3={"rail": "地铁", "region": "大多", "catchWord": "就近", "mls": "C", "destEx": ["Downtown / Union", "North York", "Square One"], "examples": ["North York 3 房联排 130 万以内，不要临街", "Union 通勤 30 分钟内的安静社区", "Markham 公寓均价多少"], "agentName": "Johome 经纪 Amy", "busLabel": "公交/地铁", "destDefault": "Downtown", "destKeys": [["north\\s*york|北约克", "North York"], ["mississauga|square\\s*one|密西沙加", "Mississauga"]], "knownDest": "downtown|市中心|union|north\\s*york|square\\s*one|mississauga"};
+  var V3={"rail": "地铁", "region": "大多", "catchWord": "就近", "mls": "C", "destEx": ["Downtown / Union", "North York", "Square One"], "examples": ["North York 3 房联排 130 万以内，不要临街", "Union 通勤 30 分钟内的安静社区", "Markham 公寓均价多少"], "agentName": "Johome 经纪 Amy", "busLabel": "公交/地铁", "destDefault": "Downtown", "destKeys": [["north\\s*york|北约克", "North York"], ["mississauga|square\\s*one|密西沙加", "Mississauga"]], "knownDest": "downtown|市中心|union|north\\s*york|square\\s*one|mississauga", "distEx": ["North York Centre", "Queen West", "Unionville Main St"]};
   var goalProfile=profile,exploreProfile={},mode='goal',modeState={goal:{answer:null,lastResult:null},explore:{answer:null,lastResult:null}};
   var goals=[],lastBatch=null,batchSeq=0,LPOOL=null,LIDX={},lastNeg=[],goalAskedV=-1,xDisliked={},gDisliked={},handoffProposed=false,noMatchStreak={};
   function avoidList(p){p=p||profile;if(!Array.isArray(p.avoid))p.avoid=[];return p.avoid;}
@@ -1087,6 +1089,38 @@ return null;}
       var qr=list.lastElementChild;if(qr&&qr.classList.contains('qr')&&!profile.tone){var b=document.createElement('button');b.className='q';b.innerHTML='<i class="ti ti-adjustments-horizontal"></i> 按氛围再筛';b.onclick=function(){disablePickables();addUser('按氛围再筛');ask('圈内你更想要哪种生活氛围？',[{label:'繁华都市'},{label:'文艺小资'},{label:'多元烟火气'},{label:'安逸慢生活'},{label:'精致高端'}],function(t){profile.tone=t;pref();resultNeighbourhoods();});};qr.appendChild(b);}});};
   /* 通勤型社区卡：把「范围内房源」指标换成按预算档算出的「预算覆盖」 */
   var covOn=false,_ncard=ncard;ncard=function(name,sub){var h=_ncard.apply(null,arguments);if(covOn){var cov=nbCoverage(name,subCity(sub));if(cov!==null)h=h.replace(/(<div class="v">)[^<]*(<\/div><div class="l">)范围内房源/,'$1'+cov+'%$2预算覆盖');}return h;};
+  /* ---------- C 商圈分支（2026-10-21 试验版）：必备店铺多选（硬筛）+ 感觉（排序）→ 3 张商圈卡 ---------- */
+  var POI_CATS=['亚洲超市','中餐馆','大型商场','Costco 类大超市','咖啡馆和小店','健身房','诊所医疗',V3.rail+'站','公园或海边','夜生活'];
+  var POI_MIN={'大型商场':1,'Costco 类大超市':1,'公园或海边':1};POI_MIN[V3.rail+'站']=1;
+  function distPOI(name,city,line){var t=(name+' '+city+' '+(line||'')),r=crng(chash('poi'+name)),o={};function rg(a,b){return a+Math.floor(r()*(b-a+1));}
+    var asian=/亚洲|华|粤|唐人|中餐|日韩|Richmond|Markham|North York|Burnaby|Scarborough|Crystal|Aberdeen|Pacific Mall|Metrotown|三号路/i.test(t);
+    o['亚洲超市']=asian?rg(2,5):rg(0,1);o['中餐馆']=asian?rg(8,20):rg(1,4);
+    o['大型商场']=/商场|Mall|Centre|购物|上盖|旗舰|Square One|Yorkdale|Metrotown|Brentwood|Oakridge|Lougheed|Richmond Centre|Aberdeen|Yorkville/i.test(t)?rg(1,2):(r()<0.3?1:0);
+    o['Costco 类大超市']=/Richmond|Burnaby|Surrey|Coquitlam|Markham|Mississauga|Vaughan|Scarborough|Langley|North York|Etobicoke/i.test(city)?(r()<0.7?1:0):(r()<0.15?1:0);
+    o['咖啡馆和小店']=/文艺|咖啡|小店|小众|古着|画廊|brunch|独立|壁画|潮流|精酿|市集/i.test(t)?rg(10,25):rg(3,10);
+    o['健身房']=rg(2,6);o['诊所医疗']=rg(2,8);
+    o[V3.rail+'站']=(/天车|地铁|Line|站|上盖|枢纽|交汇|SkyTrain|subway|Canada Line/i.test(t)||hasRail(city))?rg(1,3):(r()<0.3?1:0);
+    o['公园或海边']=/海|湖|公园|森林|海滨|湖滨|码头|河|Beach|Harbour|Quay|Park/i.test(t)?rg(2,5):rg(0,2);
+    o['夜生活']=/夜|酒吧|精酿|夜生活|核心|高楼|Yaletown|Gastown|King West|Downtown/i.test(t)?rg(5,15):rg(0,3);
+    return o;}
+  var FEEL_OPTS=[{label:'繁华都市核心 · 高楼、夜生活'},{label:'文艺街区 · 小众腔调'},{label:'大型商场型 · 一站式购物'},{label:'海滨/小镇商业街 · 慢节奏'},{label:'美食市集型 · 多元烟火气'},{label:'都行'}];
+  function feelKey(v){if(!v||/都行/.test(v))return '';return v.indexOf('都市')>=0?'urban':v.indexOf('文艺')>=0?'hip':v.indexOf('商场')>=0?'conv':(v.indexOf('海滨')>=0||v.indexOf('小镇')>=0)?'slow':'food';}
+  var DTYPE=null;function distType(name,line){if(!DTYPE){DTYPE={};if(typeof VIBES!=='undefined'){var t;for(t in VIBES)VIBES[t].o.forEach(function(o){DTYPE[o[1]]=t;});}}if(DTYPE[name])return DTYPE[name];var l=line||'';return /夜生活|高楼|核心|天际线/.test(l)?'urban':/文艺|咖啡|小店|画廊|古着|市集|潮流/.test(l)?'hip':/商场|购物|一站式/.test(l)?'conv':/海|湖|小镇|慢|码头|森林/.test(l)?'slow':/美食|烟火|多元|餐饮/.test(l)?'food':'conv';}
+  function allDistricts(){var out=[],c;for(c in DISTRICTS){if(c==='_def')continue;DISTRICTS[c].forEach(function(d){out.push({name:d[0],landmark:d[1],line:d[2],city:c});});}return out;}
+  function mustList(){return (profile.mustHave||'').split('、').filter(Boolean);}
+  brDistrict=function(){ask('你已经有想去的商圈了吗？',[{label:'已有目标商圈'},{label:'还没定，帮我推荐'}],function(v){if(v.indexOf('已有')>=0){profile.anchor='商圈型 · 已定商圈';askInput('好的，想靠近哪个商圈？直接打出来，或选示例：',V3.distEx.map(function(x){return {label:x};}),function(d){profile.district=d;pref();resultDistrictListings();});}else{profile.anchor='商圈型 · 未定商圈';pref();askMust();}});};
+  function askMust(){disablePickables();typing(function(){addAI('商圈里必须有哪些？点选最多 3 个，选完点「完成」：');var picked=[],w=document.createElement('div');w.className='qr';POI_CATS.forEach(function(n){var b=document.createElement('button');b.className='q';b.textContent=n;b.onclick=function(){var ix=picked.indexOf(n);if(ix>=0){picked.splice(ix,1);b.style.background='';b.style.color='';}else{if(picked.length>=3)return;picked.push(n);b.style.background='#0F6E56';b.style.color='#fff';}};w.appendChild(b);});var done=document.createElement('button');done.className='q';done.innerHTML='<i class="ti ti-check"></i> 完成';done.style.fontWeight='600';done.onclick=function(){if(!picked.length){addAI('至少选 1 个。');return;}var all=w.querySelectorAll('button'),i;for(i=0;i<all.length;i++){all[i].disabled=true;all[i].style.opacity='0.5';all[i].style.pointerEvents='none';}addUser(picked.join(' + '));profile.mustHave=picked.join('、');var life=picked.filter(function(x){return /亚洲超市|中餐馆/.test(x);}),amen=picked.filter(function(x){return !/亚洲超市|中餐馆/.test(x);});if(life.length)profile.lifeSvc=life.join('、');if(amen.length)profile.amenities=amen.join('、');pref();askFeel();};w.appendChild(done);list.appendChild(w);scroll();});}
+  function askFeel(){ask('感觉上更偏向哪种？（只用来排序）',FEEL_OPTS,function(v){profile.tone=/都行/.test(v)?'':v;pref();resultDistrictByNeeds();});}
+  function resultDistrictByNeeds(){lastResult=resultDistrictByNeeds;var must=mustList(),feel=feelKey(profile.tone),cands=allDistricts().map(function(d){d.poi=distPOI(d.name,d.city,d.line);d.type=distType(d.name,d.line);return d;});
+    function ok(d,cat){return (d.poi[cat]||0)>=(POI_MIN[cat]||2);}
+    var use=must.slice(),dropped=[],full=[];while(use.length){full=cands.filter(function(d){return use.every(function(c){return ok(d,c);});});if(full.length)break;dropped.unshift(use.pop());}
+    if(!full.length)full=cands.slice();
+    full.forEach(function(d){var s=0;use.forEach(function(c){s+=Math.min(1,(d.poi[c]||0)/((POI_MIN[c]||2)*3));});d._s=s*10+(feel&&d.type===feel?10:0)+(hasRail(d.city)?1:0);});
+    full.sort(function(a,b){return b._s-a._s;});var top=full.slice(0,3);
+    typing(function(){addAI('按你要的「'+must.join('、')+'」在各商圈半径内数了店铺'+(feel?('，再按「'+profile.tone+'」排序'):'')+(dropped.length?('。没有商圈能同时满足全部，先放掉了「'+dropped.join('、')+'」（卡片里已标注）'):'')+'，这 '+top.length+' 个最合适（点开看详情与范围内房源）：');
+      var h='<div style="display:flex;gap:9px;overflow-x:auto;padding-bottom:3px">';top.forEach(function(d){var dm=distMetrics(d.name,d.city),checks=must.map(function(c){var hit=ok(d,c)&&use.indexOf(c)>=0;return (hit?'<span style="color:#0F6E56">✓ ':'<span style="color:#B23B2E">✗ ')+c+'·'+(d.poi[c]||0)+'</span>';}).join(' ');h+=districtcard(d.name,d.landmark,checks+'<br><span class="muted">'+d.line+'</span>','$'+dm.condo+'万','范围内 Condo 中位',dm.cnt+' 套','范围内房源',d.city);});
+      addBlock(h+'</div>',openDistrictPage);askWhich('商圈',top.map(function(d){return d.name;}),function(name){disablePickables();addUser(name);profile.district=name;pref();resultDistrictListings();});
+      var qr=list.lastElementChild;if(qr&&qr.classList.contains('qr')){var bs=qr.querySelectorAll('button'),i;for(i=0;i<bs.length;i++)if(bs[i].textContent.indexOf('重新选择')>=0)bs[i].remove();var b=document.createElement('button');b.className='q';b.innerHTML='<i class="ti ti-building-store"></i> 换必备店铺';b.onclick=function(){disablePickables();addUser('换必备店铺');askMust();};qr.appendChild(b);}});}
   /* 调试入口 */
   window.__v3={goals:function(){return goals;},profile:function(){return goalProfile;},explore:function(){return exploreProfile;},pool:buildPool,mode:function(){return mode;}};
 
