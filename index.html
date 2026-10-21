@@ -110,6 +110,8 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -826,7 +828,7 @@ return null;}
   /* ===================== v3 layer（PRD v3 · 2026-10-20）=====================
      Explore / Goal 两种模式、负向档案（不考虑清单）、三段式房源批次、找房 Goal 定时推送、
      房源详情页「问 AI」、经纪授权交接。只挂钩既有引擎，不改原函数体。 */
-  var V3={"rail": "地铁", "region": "大多", "catchWord": "就近", "mls": "C", "destEx": ["Downtown / Union", "North York", "Square One"], "examples": ["North York 3 房联排 130 万以内，不要临街", "Union 通勤 30 分钟内的安静社区", "Markham 公寓均价多少"], "agentName": "Johome 经纪 Amy"};
+  var V3={"rail": "地铁", "region": "大多", "catchWord": "就近", "mls": "C", "destEx": ["Downtown / Union", "North York", "Square One"], "examples": ["North York 3 房联排 130 万以内，不要临街", "Union 通勤 30 分钟内的安静社区", "Markham 公寓均价多少"], "agentName": "Johome 经纪 Amy", "busLabel": "公交/地铁", "destDefault": "Downtown", "destKeys": [["north\\s*york|北约克", "North York"], ["mississauga|square\\s*one|密西沙加", "Mississauga"]], "knownDest": "downtown|市中心|union|north\\s*york|square\\s*one|mississauga"};
   var goalProfile=profile,exploreProfile={},mode='goal',modeState={goal:{answer:null,lastResult:null},explore:{answer:null,lastResult:null}};
   var goals=[],lastBatch=null,batchSeq=0,LPOOL=null,LIDX={},lastNeg=[],goalAskedV=-1,xDisliked={},gDisliked={},handoffProposed=false,noMatchStreak={};
   function avoidList(p){p=p||profile;if(!Array.isArray(p.avoid))p.avoid=[];return p.avoid;}
@@ -1060,6 +1062,23 @@ return null;}
   sendBtn.onclick=function(){doSend();};
   var rstEl=root.querySelector('.rst'),_rst=rstEl.onclick;rstEl.onclick=function(){if(mode!=='goal')switchMode('goal');goals=[];lastBatch=null;gDisliked={};xDisliked={};goalAskedV=-1;handoffProposed=false;exploreProfile={};modeState.explore={answer:null,lastResult:null};xchat.innerHTML='';_rst();goalProfile.avoid=[];goalProfile.avoidRaw=[];goalProfile.feeMax=0;goalProfile._v=1;renderWb();};
   goalProfile._v=1;
+  /* ---------- B 通勤分支（2026-10-21）：等时圈三问后补问 粗档预算 + 谁一起住，社区卡按 预算覆盖率 + 轨道适配 + 家庭匹配 排序；氛围改为出卡后可选 ---------- */
+  function nbCoverage(nb,city){var br=budgetRange(profile.budget);if(!br)return null;var pool=buildPool(),tot=0,ok=0,i;for(i=0;i<pool.length;i++){var l=pool[i];if(l.nb!==nb||l.clone)continue;if(!typeOK(l,profile.htype))continue;tot++;if(l.price<=br[1])ok++;}return tot?Math.round(ok/tot*100):null;}
+  function nbSchool(nb){var pool=buildPool(),n=0,sum=0,i;for(i=0;i<pool.length;i++){if(pool[i].nb===nb&&!pool[i].clone){n++;sum+=pool[i].school;}}return n?Math.round(sum/n*10)/10:0;}
+  brTime=function(){var go=function(){resultNeighbourhoods();};
+    var askFam=function(){if(profile.family){go();return;}ask('最后一问：谁会一起住？',[{label:'单身'},{label:'情侣/夫妻两口'},{label:'带孩子家庭'},{label:'三代同堂'}],function(v){profile.family=v;pref();if(/孩|三代/.test(v))addAI('已根据家庭结构自动调整。');go();});};
+    var askBud=function(){if(profile.budget){askFam();return;}ask('预算大概哪个档？（只用来算圈内各社区的预算覆盖率，精确预算看房源前再定）',BUD,function(v){profile.budget=v;pref();askFam();});};
+    var askMode=function(){if(profile.mode){askBud();return;}ask('通勤主要靠什么方式？',[{label:'开车'},{label:V3.busLabel}],function(md){profile.mode=md;pref();askBud();});};
+    if(profile.time){askMode();return;}ask('单程通勤最多能接受多久？',TIM,function(v){profile.time=v;pref();askMode();});};
+  resultNeighbourhoods=function(){lastResult=resultNeighbourhoods;var destKey=V3.destDefault,i;for(i=0;i<V3.destKeys.length;i++)if(new RegExp(V3.destKeys[i][0],'i').test(profile.dest||''))destKey=V3.destKeys[i][1];
+    var tKey=/30/.test(profile.time||'')?'30分钟':/60/.test(profile.time||'')?'60分钟':'45分钟',custom=profile.dest&&!new RegExp(V3.knownDest,'i').test(profile.dest),note=custom?'（自定义地址在演示中按 Downtown 等时圈近似，正式版实时计算）':'',bus=/公交|天车|地铁/.test(profile.mode||''),kids=/孩|三代/.test(profile.family||''),kw=(typeof TONEKW!=='undefined'&&TONEKW[profile.tone])||[];
+    var base=((BSET[destKey]&&BSET[destKey][tKey])||BSET['Downtown']['45分钟']).slice(),rows=base.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]);if(cov!==null){row[6]=cov+'%';row[7]='预算覆盖';}var th=0,j;for(j=0;j<kw.length;j++)if((n[3]||'').indexOf(kw[j])>=0)th++;row._s=(cov===null?40:cov*0.6)+(bus&&hasRail(city)?15:0)+(kids&&sch>=8?12:0)+th*8;row._cov=cov;row._sch=sch;return row;}).sort(function(a,b){return b._s-a._s;});
+    var hasBud=rows.some(function(r){return r._cov!==null;});
+    typing(function(){addAI('按「到 '+(profile.dest||'Downtown')+' '+(profile.mode||'')+' ≤'+(profile.time||'45分钟')+'」的等时圈圈出候选社区'+note+'，再按'+(hasBud?'你的预算档（预算覆盖率）':'')+(bus?'、'+V3.rail+'沿线':'')+(kids?'、学区':'')+(profile.tone?'、「'+profile.tone+'」氛围':'')+' 排序，这几个最合适（点开看详情与在售房源）：');
+      covOn=true;addBlock(nbScroll(rows),openCommunity);covOn=false;var names=rows.map(function(a){return a[0];});askWhich('社区',names,chooseCommunity);
+      var qr=list.lastElementChild;if(qr&&qr.classList.contains('qr')&&!profile.tone){var b=document.createElement('button');b.className='q';b.innerHTML='<i class="ti ti-adjustments-horizontal"></i> 按氛围再筛';b.onclick=function(){disablePickables();addUser('按氛围再筛');ask('圈内你更想要哪种生活氛围？',[{label:'繁华都市'},{label:'文艺小资'},{label:'多元烟火气'},{label:'安逸慢生活'},{label:'精致高端'}],function(t){profile.tone=t;pref();resultNeighbourhoods();});};qr.appendChild(b);}});};
+  /* 通勤型社区卡：把「范围内房源」指标换成按预算档算出的「预算覆盖」 */
+  var covOn=false,_ncard=ncard;ncard=function(name,sub){var h=_ncard.apply(null,arguments);if(covOn){var cov=nbCoverage(name,subCity(sub));if(cov!==null)h=h.replace(/(<div class="v">)[^<]*(<\/div><div class="l">)范围内房源/,'$1'+cov+'%$2预算覆盖');}return h;};
   /* 调试入口 */
   window.__v3={goals:function(){return goals;},profile:function(){return goalProfile;},explore:function(){return exploreProfile;},pool:buildPool,mode:function(){return mode;}};
 
