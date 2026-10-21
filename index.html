@@ -113,6 +113,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -1069,7 +1070,7 @@ return null;}
   function nbSchool(nb){var pool=buildPool(),n=0,sum=0,i;for(i=0;i<pool.length;i++){if(pool[i].nb===nb&&!pool[i].clone){n++;sum+=pool[i].school;}}return n?Math.round(sum/n*10)/10:0;}
   brTime=function(){var go=function(){resultNeighbourhoods();};
     var askFam=function(){if(profile.family){go();return;}ask('最后一问：谁会一起住？',[{label:'单身'},{label:'情侣/夫妻两口'},{label:'带孩子家庭'},{label:'三代同堂'}],function(v){profile.family=v;pref();if(/孩|三代/.test(v))addAI('已根据家庭结构自动调整。');go();});};
-    var askBud=function(){if(profile.budget){askFam();return;}ask('预算大概哪个档？（只用来算圈内各社区的预算覆盖率，精确预算看房源前再定）',BUD,function(v){profile.budget=v;pref();askFam();});};
+    var askBud=function(){if(profile.budget){askFam();return;}ask('预算大概哪个档？',BUD,function(v){profile.budget=v;pref();askFam();});};
     var askMode=function(){if(profile.mode){askBud();return;}ask('通勤主要靠什么方式？',[{label:'开车'},{label:V3.busLabel}],function(md){profile.mode=md;pref();askBud();});};
     if(profile.time){askMode();return;}ask('单程通勤最多能接受多久？',TIM,function(v){profile.time=v;pref();askMode();});};
   resultNeighbourhoods=function(){lastResult=resultNeighbourhoods;var destKey=V3.destDefault,i;for(i=0;i<V3.destKeys.length;i++)if(new RegExp(V3.destKeys[i][0],'i').test(profile.dest||''))destKey=V3.destKeys[i][1];
