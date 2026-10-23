@@ -127,6 +127,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -856,7 +857,7 @@ return null;}
   var hdEl=chatView.querySelector('.hd'),profStripEl=root.querySelector('#profStrip'),goalChat=root.querySelector('.chat'),stageEl=root.querySelector('.stage');
   var tabs=document.createElement('div');tabs.className='v3tabs';tabs.innerHTML='<button class="v3tab" data-m="explore"><i class="ti ti-compass"></i>探索模式</button><button class="v3tab on" data-m="goal"><i class="ti ti-target"></i>专业模式</button>';
   hdEl.insertAdjacentElement('afterend',tabs);
-  var xbar=document.createElement('div');xbar.className='v3bar';xbar.style.display='none';xbar.innerHTML='<i class="ti ti-compass" style="color:#B07A12"></i><span class="v3bartxt">探索模式 · 不记档案</span><button class="v3mini" id="v3toGoal"><i class="ti ti-target"></i>长期盯这类房</button><button class="v3mini ghost" id="v3xreset"><i class="ti ti-refresh"></i>重新找</button>';
+  var xbar=document.createElement('div');xbar.className='v3bar';xbar.style.display='none';xbar.innerHTML='<i class="ti ti-compass" style="color:#B07A12"></i><span class="v3bartxt">探索模式 · 不记档案</span><button class="v3mini ghost" id="v3xreset"><i class="ti ti-eraser"></i>清空</button>';
   profStripEl.insertAdjacentElement('afterend',xbar);
   var wb=document.createElement('div');wb.id='v3wb';wb.style.display='none';xbar.insertAdjacentElement('afterend',wb);
   var xchat=document.createElement('div');xchat.className='chat';xchat.style.display='none';goalChat.insertAdjacentElement('afterend',xchat);
@@ -867,7 +868,6 @@ return null;}
     var n=tabs.querySelectorAll('.v3tab'),i;for(i=0;i<n.length;i++)n[i].className='v3tab'+(n[i].getAttribute('data-m')===m?' on':'');showChat();scroll();}
   (function(){var n=tabs.querySelectorAll('.v3tab'),i;for(i=0;i<n.length;i++)(function(b){b.onclick=function(){switchMode(b.getAttribute('data-m'));};})(n[i]);})();
   root.querySelector('#v3xreset').onclick=function(){exploreProfile={};xDisliked={};modeState.explore={answer:null,lastResult:null};answer=null;lastResult=null;xchat.innerHTML='';xIntro();scroll();};
-  root.querySelector('#v3toGoal').onclick=function(){openXToGoalPage();};
 
   /* ---------- 负向档案：否定句解析（硬/软由维度决定，不由措辞决定） ---------- */
   var NEG_RE=/(不要|不想要|不想|不喜欢|不考虑|不接受|不能要|不行|别推|别给|别要|避开|受不了|排除|不适合|讨厌|拒绝|免了|不选)/;
