@@ -135,6 +135,10 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
+
+
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -180,6 +184,11 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v3av i{cursor:pointer;font-size:11px}
 .v3mode{display:inline-flex;padding:2px 7px;border-radius:999px;font-size:10px;background:#E1F5EE;color:#0F6E56}
 .v3mode.x{background:#FFF7E6;color:#B07A12}
+#v3xcond{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:5px 12px 6px;background:#FFFDF5;border-bottom:0.5px solid #F0D9A8;flex:none;max-height:72px;overflow-y:auto}
+#v3xcond .tag{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:999px;font-size:10.5px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);cursor:pointer}
+#v3xcond .tag.neg{background:#FDECEC;color:#B23B2E;border-color:#F5C2C2}
+#v3xcond .tag i{font-size:10px;color:var(--color-text-tertiary)}
+.v3und .tag.mode{background:#0F6E56;color:#fff;border-color:#0F6E56}
 </style>
 </head>
 <body>
@@ -866,6 +875,7 @@ return null;}
   hdEl.insertAdjacentElement('afterend',tabs);
   var xbar=document.createElement('div');xbar.className='v3bar';xbar.style.display='none';xbar.innerHTML='<i class="ti ti-compass" style="color:#B07A12"></i><span class="v3bartxt">探索模式 · 不记档案</span><button class="v3mini ghost" id="v3xreset"><i class="ti ti-eraser"></i>清空</button>';
   profStripEl.insertAdjacentElement('afterend',xbar);
+  var xcond=document.createElement('div');xcond.id='v3xcond';xcond.style.display='none';xbar.insertAdjacentElement('afterend',xcond);
   var wb=document.createElement('div');wb.id='v3wb';wb.style.display='none';xbar.insertAdjacentElement('afterend',wb);
   var xchat=document.createElement('div');xchat.className='chat';xchat.style.display='none';goalChat.insertAdjacentElement('afterend',xchat);
   function xIntro(){xchat.innerHTML='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bub">探索模式：直接跟我说您的找房条件或问题，我会即刻给您推荐或解答。若想让我持续按您的需求帮您寻找合适的房源，请切到「专业模式」。</div></div>';var w=document.createElement('div');w.className='qr';V3.examples.forEach(function(t){var b=document.createElement('button');b.className='q';b.textContent=t;b.onclick=function(){inp.value=t;doSend();};w.appendChild(b);});xchat.appendChild(w);}
@@ -874,7 +884,7 @@ return null;}
     else{profile=goalProfile;list=goalChat;xchat.style.display='none';goalChat.style.display='flex';profStripEl.style.display='flex';xbar.style.display='none';renderWb();}
     var n=tabs.querySelectorAll('.v3tab'),i;for(i=0;i<n.length;i++)n[i].className='v3tab'+(n[i].getAttribute('data-m')===m?' on':'');showChat();scroll();}
   (function(){var n=tabs.querySelectorAll('.v3tab'),i;for(i=0;i<n.length;i++)(function(b){b.onclick=function(){switchMode(b.getAttribute('data-m'));};})(n[i]);})();
-  root.querySelector('#v3xreset').onclick=function(){exploreProfile={};if(mode==='explore')profile=exploreProfile;xDisliked={};modeState.explore={answer:null,lastResult:null};answer=null;lastResult=null;xchat.innerHTML='';xIntro();scroll();};
+  root.querySelector('#v3xreset').onclick=function(){exploreProfile={};if(mode==='explore')profile=exploreProfile;xTurn=null;renderXCond();xDisliked={};modeState.explore={answer:null,lastResult:null};answer=null;lastResult=null;xchat.innerHTML='';xIntro();scroll();};
 
   /* ---------- 负向档案：否定句解析（硬/软由维度决定，不由措辞决定） ---------- */
   var NEG_RE=/(不要|不想要|不想|不喜欢|不考虑|不接受|不能要|不行|别推|别给|别要|避开|受不了|排除|不适合|讨厌|拒绝|免了|不选)/;
@@ -920,7 +930,7 @@ return null;}
     /* 拼写容错：英文词（≥5 字母）与区域名编辑距离 ≤ 阈值时视为该区域（如 shaunassy → Shaughnessy） */
     var toks=lc.match(/[a-z]{5,}/g)||[];toks.forEach(function(tok){var ix=lc.indexOf(tok);if(used.some(function(u){return ix>=u[0]&&ix<u[1];}))return;var thr=tok.length<=6?1:tok.length<=8?2:3,best=null,bd=99,i;for(i=0;i<REGION_NAMES.length;i++){var al=REGION_NAMES[i][0].toLowerCase().replace(/[^a-z]/g,'');if(al.length<5||Math.abs(al.length-tok.length)>thr)continue;var d=lev(tok,al);if(d<bd){bd=d;best=REGION_NAMES[i][1];}}if(best&&bd<=thr){var kind=CITYCARD[best]?'tCity':(typeof ZONES!=='undefined'&&ZONES[best])?'tZone':'tNb';if(!out.some(function(o){return o.name===best;}))out.push({name:best,kind:kind,fuzzy:tok});used.push([ix,ix+tok.length]);}});return out;}
   function lev(a,b){var m=a.length,n=b.length,i,j,prev=[],cur=[];for(j=0;j<=n;j++)prev[j]=j;for(i=1;i<=m;i++){cur=[i];for(j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur;}return prev[n];}
-  var _extract=extract;extract=function(t){if(!t)return;var r=parseNeg(t,profile);lastNeg=r.added;_extract(r.rest);var rb=r.rest.replace(/首付\s*\d{1,3}\s*(万|%|成)/,''),rg=rb.match(/(\d{2,4})\s*(?:万|w)?\s*[–\-~到至]\s*(\d{2,4})\s*(万|w)/i),up=rb.match(/(\d{2,4})\s*(万|w)\s*(以上|起|往上|朝上)/i),bm=rb.match(/(\d{2,4})\s*(万|w)/i);if(rg){var a1=parseInt(rg[1],10),a2=parseInt(rg[2],10);if(a1>=30&&a2<=2000&&a1<a2)profile.budget=a1+'–'+a2+'万';}else if(up){var un=parseInt(up[1],10);if(un>=30&&un<=2000)profile.budget='>'+un+'万';}else if(bm){var bn=parseInt(bm[1],10);if(bn>=30&&bn<=2000)profile.budget='≤'+bn+'万';}findRegionsAll(r.rest).forEach(function(o){var cur=(profile[o.kind]||'').split('、').filter(Boolean);if(cur.indexOf(o.name)<0&&cur.length<5){cur.push(o.name);profile[o.kind]=cur.join('、');}});pref();};
+  var _extract=extract;extract=function(t){if(!t)return;var r=parseNeg(t,profile);lastNeg=r.added;_extract(r.rest);var rb=r.rest.replace(/首付\s*\d{1,3}\s*(万|%|成)/,''),rg=rb.match(/(\d{2,4})\s*(?:万|w)?\s*[–\-~到至]\s*(\d{2,4})\s*(万|w)/i),up=rb.match(/(\d{2,4})\s*(万|w)\s*(以上|起|往上|朝上)/i),bm=rb.match(/(\d{2,4})\s*(万|w)/i);if(rg){var a1=parseInt(rg[1],10),a2=parseInt(rg[2],10);if(a1>=30&&a2<=2000&&a1<a2)profile.budget=a1+'–'+a2+'万';}else if(up){var un=parseInt(up[1],10);if(un>=30&&un<=2000)profile.budget='>'+un+'万';}else if(bm){var bn=parseInt(bm[1],10);if(bn>=30&&bn<=2000)profile.budget='≤'+bn+'万';}if(profile.beds&&!/^\d\+?室$/.test(profile.beds)){var bn2=(''+profile.beds).match(/(\d)\s*\+?\s*(房|室|卧|床|bed)/i);profile.beds=bn2?(bn2[1]+(/\+/.test(profile.beds)?'+':'')+'室'):'';}findRegionsAll(r.rest).forEach(function(o){var cur=(profile[o.kind]||'').split('、').filter(Boolean);if(cur.indexOf(o.name)<0&&cur.length<5){cur.push(o.name);profile[o.kind]=cur.join('、');}});pref();};
   function avoidLabel(a){return a.dim==='排除区域'?('不考虑 '+a.value):a.dim==='其他'?('记下：'+a.value):(a.thr?(a.dim+' '+a.value):('不要'+a.value));}
 
   /* ---------- 样本房源池（结构化字段，按社区确定性生成） ---------- */
@@ -1071,7 +1081,7 @@ return null;}
       if(a==='ask')openAskSheet(l);else if(a==='like')likeListing(l);else if(a==='dislike'){showChat();dislikeReason(l);}else if(a==='xconfirm')xConfirm();else if(a==='hconfirm')hConfirm(g);else if(a==='revoke'){g.handoff=null;renderWb();showChat();typing(function(){addAI('已撤销对 '+V3.agentName+' 的授权，停止新的共享。');});}};})(n[i]);
     n=detail.querySelectorAll('[data-vdel]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(e){e.stopPropagation();avoidList(goalProfile).splice(+el.getAttribute('data-vdel'),1);pref();replacePage(profilePage());};})(n[i]);
     n=detail.querySelectorAll('[data-vrdel]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(e){e.stopPropagation();avoidRaw(goalProfile).splice(+el.getAttribute('data-vrdel'),1);pref();replacePage(profilePage());};})(n[i]);};
-  var _pref=pref;pref=function(){if(mode==='goal')goalProfile._v=(goalProfile._v|0)+1;_pref();};
+  var _pref=pref;pref=function(){if(mode==='explore'&&typeof renderXCond==='function')renderXCond();if(mode==='goal')goalProfile._v=(goalProfile._v|0)+1;_pref();};
   var _showChat=showChat;showChat=function(){var s=stageEl.querySelector('.v3sheet');if(s)s.remove();_showChat();};
 
   /* ---------- 接管出房源：三段式替代写死的 3 张卡 ---------- */
@@ -1081,9 +1091,13 @@ return null;}
   /* ---------- 输入分发：Explore 走解析即筛选；Goal 走原分诊 + 否定句确认 ---------- */
   function snap(p){var o={};FIELDS.forEach(function(f){o[f.k]=p[f.k]||'';});return o;}
   function diffChips(before,p){var out=[];FIELDS.forEach(function(f){var v=p[f.k]||'';if(v&&v!==before[f.k])out.push({t:f.label+'：'+v});});return out;}
-  function understoodHTML(chips){return '<div class="v3und"><i class="ti ti-scan" style="color:#0F6E56"></i><span>AI 理解为：</span>'+chips.map(function(c){return '<span class="tag'+(c.neg?' neg':'')+'">'+esc(c.t)+'</span>';}).join('')+'</div>';}
-  function xSend(t){addUser(t);if(answer!==null){clearLive();var f=answer;answer=null;f(t,true);return;}
-    var before=snap(exploreProfile);extract(t);var chips=diffChips(before,exploreProfile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(chips.length)addBlock(understoodHTML(chips));
+  function understoodHTML(chips,extra){return '<div class="v3und"><i class="ti ti-scan" style="color:#0F6E56"></i><span>AI 理解为：</span>'+chips.map(function(c){return '<span class="tag'+(c.neg?' neg':'')+(c.cls?(' '+c.cls):'')+'">'+esc(c.t)+'</span>';}).join('')+(extra||'')+'</div>';}
+  function xYields(t){var sv=profile,sc={};profile=sc;lastNeg=[];try{extract(t);}catch(e){}profile=sv;return xHasCond(sc)||lastNeg.length>0;}
+  function xSend(t,force){if(!force)addUser(t);if(answer!==null&&!force){var live=[].slice.call(list.querySelectorAll('.qr.live button')).map(function(b){return b.textContent.trim();}),tt=t.trim(),isOpt=live.some(function(l){return l===tt||l.indexOf(tt)>=0||tt.indexOf(l)>=0;});if(isOpt||!xYields(t)){clearLive();var f=answer;answer=null;f(t,true);return;}clearLive();answer=null;}
+    var old=exploreProfile,hadOld=xHasCond(old),fresh={};profile=exploreProfile=fresh;lastNeg=[];extract(t);var mode2=force||xClassify(t,fresh,old);if(!hadOld)mode2='new';
+    if(mode2==='new'){xDisliked={};}else{FIELDS.forEach(function(f){var v=fresh[f.k];if(!v)return;if(f.k==='tCity'||f.k==='tZone'||f.k==='tNb'){var cur=(old[f.k]||'').split('、').filter(Boolean);v.split('、').forEach(function(x){if(cur.indexOf(x)<0)cur.push(x);});old[f.k]=cur.join('、');}else old[f.k]=v;});if(fresh.feeMax)old.feeMax=fresh.feeMax;avoidList(fresh).forEach(function(a){addAvoid(old,a.dim,a.value,a.hard,a.raw);});avoidRaw(fresh).forEach(function(x){if(avoidRaw(old).indexOf(x)<0)avoidRaw(old).push(x);});profile=exploreProfile=old;}
+    xTurn=hadOld?{mode:mode2,text:t,oldSnap:xClone(old)}:null;renderXCond();
+    var chips=diffChips({},fresh).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(chips.length)addBlock(understoodHTML(xTag().concat(chips),xFlipBtn()));
     var qa=matchQA(t);if(qa){runQA(qa,false);return;}
     var wantsListing=/房源|房子|套房|几套|listing|找房|看房|出房/i.test(t)||(!isRec(t)&&!!(exploreProfile.budget||exploreProfile.htype||exploreProfile.beds));
     if(isRec(t)&&!/房源|房子|套房|几套|listing/i.test(t)){freeRecommend(t);return;}
@@ -1183,7 +1197,26 @@ return null;}
   function undChips(){var out=[];FIELDS.forEach(function(f){if(UND_SKIP[f.k])return;var v=profile[f.k];if(v)out.push({t:f.label+'：'+v});});if(profile.mustHave)out.push({t:'商圈必备：'+profile.mustHave});if(profile.feeMax)out.push({t:'月费上限：$'+profile.feeMax});avoidList(profile).forEach(function(a){out.push({t:avoidLabel(a),neg:!a.thr});});return out;}
   function undKeyOf(chips){return chips.map(function(c){return esc(c.t);}).join('|');}
   function undKeyFromHTML(h){var m=h.match(/<span class="tag[^"]*">[^<]*<\/span>/g)||[];return m.map(function(x){return x.replace(/<[^>]+>/g,'');}).join('|');}
-  var _addBlock=addBlock;addBlock=function(html,tapFn){if(/class="v3und"/.test(html)){lastUndKey=undKeyFromHTML(html);}else if(/data-tap=/.test(html)){var ch=undChips(),k=undKeyOf(ch);if(ch.length&&k!==lastUndKey){var le=list.lastElementChild;while(le){if(le.querySelector&&le.querySelector('[data-tap]'))break;if(le.querySelector&&le.querySelector('.v3und')){le.remove();break;}le=le.previousElementSibling;}lastUndKey=k;_addBlock(understoodHTML(ch));}}_addBlock(html,tapFn);};
+  var _addBlock=addBlock;addBlock=function(html,tapFn){if(/class="v3und"/.test(html)){lastUndKey=undKeyFromHTML(html);}else if(/data-tap=/.test(html)){var ch=undChips(),k=undKeyOf(ch);if(ch.length&&k!==lastUndKey){var le=list.lastElementChild;while(le){if(le.querySelector&&le.querySelector('[data-tap]'))break;if(le.querySelector&&le.querySelector('.v3und')){le.remove();break;}le=le.previousElementSibling;}lastUndKey=k;_addBlock(understoodHTML((mode==='explore'?xTag():[]).concat(ch),mode==='explore'?xFlipBtn():''));}}_addBlock(html,tapFn);};
+  /* ---------- 探索模式：新需求 / 补充上一条 的判定、翻转与顶栏条件 chips（2026-10-23） ---------- */
+  var xTurn=null;
+  function xClone(p){return JSON.parse(JSON.stringify(p));}
+  function xHasCond(p){var any=false;FIELDS.forEach(function(f){if(p[f.k])any=true;});return any||!!(p.avoid&&p.avoid.length)||!!p.feeMax;}
+  var XREG=['tCity','tZone','tNb','district','school','dest'];
+  function xClassify(t,fresh,old){
+    if(/换个|换一个|换一种|重新找|重新来|新需求|另外(想|找|看|帮我)|还有一个|再找一个|再找个/.test(t))return 'new';
+    if(/^(再|还要|也要|加上|加一个|改成|改为|不要|别|另外要|顺便)/.test(t.trim())||/再加上|加上要|改成|改为/.test(t))return 'add';
+    var regNew=XREG.some(function(k){return fresh[k]&&fresh[k]!==old[k];}),regSame=XREG.some(function(k){return fresh[k]&&fresh[k]===old[k];});
+    if(regNew&&!regSame)return 'new';
+    if(/(想|要|帮我|给我|麻烦).{0,8}(找|看|推荐|来)/.test(t)&&(regNew||fresh.htype||fresh.budget))return 'new';
+    return 'add';}
+  function xTag(){if(!xTurn)return [];return [{t:xTurn.mode==='new'?'新需求':'补充上一条',cls:'mode'}];}
+  function xFlipBtn(){if(!xTurn)return '';return '<button class="v3mini ghost" data-xflip="1" style="margin-left:4px;padding:2px 7px;font-size:10px">'+(xTurn.mode==='new'?'改为补充上一条':'改为新需求')+'</button>';}
+  function xFlip(){if(!xTurn)return;var to=xTurn.mode==='new'?'add':'new',t=xTurn.text;exploreProfile=xTurn.oldSnap;if(mode==='explore')profile=exploreProfile;var n=list.querySelectorAll('[data-xflip]'),i;for(i=0;i<n.length;i++)n[i].remove();typing(function(){addAI('好的，按「'+(to==='new'?'新需求':'补充上一条')+'」重新理解这句：');xSend(t,to);});}
+  xchat.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-xflip]');if(b){e.preventDefault();xFlip();}});
+  function renderXCond(){var p=exploreProfile,h='';FIELDS.forEach(function(f){var v=p[f.k];if(!v||UND_SKIP[f.k])return;h+='<span class="tag" data-xk="'+f.k+'">'+esc(f.label+'：'+v)+' <i class="ti ti-x"></i></span>';});avoidList(p).forEach(function(a,i){h+='<span class="tag neg" data-xa="'+i+'">'+esc(avoidLabel(a))+' <i class="ti ti-x"></i></span>';});if(!h){xcond.style.display='none';xcond.innerHTML='';return;}xcond.style.display=(mode==='explore')?'flex':'none';xcond.innerHTML='<span class="muted" style="font-size:10.5px;flex:none">当前条件</span>'+h;}
+  xcond.addEventListener('click',function(e){var tg=e.target.closest&&e.target.closest('.tag');if(!tg)return;var k=tg.getAttribute('data-xk'),a=tg.getAttribute('data-xa');if(k){exploreProfile[k]='';}else if(a!==null){avoidList(exploreProfile).splice(+a,1);}renderXCond();addAI('已去掉这个条件（只影响本次）。继续补充或直接出结果。');scroll();});
+  var _switchMode2=switchMode;switchMode=function(m){_switchMode2(m);if(m==='explore')renderXCond();else xcond.style.display='none';};
   /* 调试入口 */
   window.__v3={goals:function(){return goals;},profile:function(){return goalProfile;},explore:function(){return exploreProfile;},pool:buildPool,mode:function(){return mode;}};
 
