@@ -131,6 +131,9 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
+
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -1173,6 +1176,12 @@ return null;}
     if(!cnt){typing(function(){addAI('本次还没有可用的条件 —— 先说一句，比如「'+V3.examples[0]+'」。');});return;}
     addUser('设置为找房目标');switchMode('goal');pref();xGoalPending=true;typing(function(){addAI('已切到专业模式，并把本次抽取的 '+cnt+' 项条件写入档案（版本 v'+(goalProfile._v||1)+'）。先按档案出第一批，再定推送周期：');askListingReqs(function(){batchFlow();});});}
   var _afterBatch=afterBatch;afterBatch=function(b){if(xGoalPending){xGoalPending=false;askGoal();return;}_afterBatch(b);};
+  /* ---------- 「AI 理解为」回显：任何结果卡（两种模式、所有卡型）出卡前都先列本次用到的条件（2026-10-23） ---------- */
+  var UND_SKIP={purpose:1,anchor:1,recDim:1,firstTime:1,timeline:1,preApproved:1,downPay:1},lastUndKey='';
+  function undChips(){var out=[];FIELDS.forEach(function(f){if(UND_SKIP[f.k])return;var v=profile[f.k];if(v)out.push({t:f.label+'：'+v});});if(profile.mustHave)out.push({t:'商圈必备：'+profile.mustHave});if(profile.feeMax)out.push({t:'月费上限：$'+profile.feeMax});avoidList(profile).forEach(function(a){out.push({t:avoidLabel(a),neg:!a.thr});});return out;}
+  function undKeyOf(chips){return chips.map(function(c){return esc(c.t);}).join('|');}
+  function undKeyFromHTML(h){var m=h.match(/<span class="tag[^"]*">[^<]*<\/span>/g)||[];return m.map(function(x){return x.replace(/<[^>]+>/g,'');}).join('|');}
+  var _addBlock=addBlock;addBlock=function(html,tapFn){if(/class="v3und"/.test(html)){lastUndKey=undKeyFromHTML(html);}else if(/data-tap=/.test(html)){var ch=undChips(),k=undKeyOf(ch);if(ch.length&&k!==lastUndKey){var le=list.lastElementChild;while(le){if(le.querySelector&&le.querySelector('[data-tap]'))break;if(le.querySelector&&le.querySelector('.v3und')){le.remove();break;}le=le.previousElementSibling;}lastUndKey=k;_addBlock(understoodHTML(ch));}}_addBlock(html,tapFn);};
   /* 调试入口 */
   window.__v3={goals:function(){return goals;},profile:function(){return goalProfile;},explore:function(){return exploreProfile;},pool:buildPool,mode:function(){return mode;}};
 
