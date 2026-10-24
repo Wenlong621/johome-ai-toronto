@@ -139,6 +139,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -1214,7 +1215,7 @@ return null;}
   function xFlipBtn(){if(!xTurn)return '';return '<button class="v3mini ghost" data-xflip="1" style="margin-left:4px;padding:2px 7px;font-size:10px">'+(xTurn.mode==='new'?'改为补充上一条':'改为新需求')+'</button>';}
   function xFlip(){if(!xTurn)return;var to=xTurn.mode==='new'?'add':'new',t=xTurn.text;exploreProfile=xTurn.oldSnap;if(mode==='explore')profile=exploreProfile;var n=list.querySelectorAll('[data-xflip]'),i;for(i=0;i<n.length;i++)n[i].remove();typing(function(){addAI('好的，按「'+(to==='new'?'新需求':'补充上一条')+'」重新理解这句：');xSend(t,to);});}
   xchat.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-xflip]');if(b){e.preventDefault();xFlip();}});
-  function renderXCond(){var p=exploreProfile,h='';FIELDS.forEach(function(f){var v=p[f.k];if(!v||UND_SKIP[f.k])return;h+='<span class="tag" data-xk="'+f.k+'">'+esc(f.label+'：'+v)+' <i class="ti ti-x"></i></span>';});avoidList(p).forEach(function(a,i){h+='<span class="tag neg" data-xa="'+i+'">'+esc(avoidLabel(a))+' <i class="ti ti-x"></i></span>';});if(!h){xcond.style.display='none';xcond.innerHTML='';return;}xcond.style.display=(mode==='explore')?'flex':'none';xcond.innerHTML='<span class="muted" style="font-size:10.5px;flex:none">当前条件</span>'+h;}
+  function renderXCond(){xcond.style.display='none';xcond.innerHTML='';return;var p=exploreProfile,h='';FIELDS.forEach(function(f){var v=p[f.k];if(!v||UND_SKIP[f.k])return;h+='<span class="tag" data-xk="'+f.k+'">'+esc(f.label+'：'+v)+' <i class="ti ti-x"></i></span>';});avoidList(p).forEach(function(a,i){h+='<span class="tag neg" data-xa="'+i+'">'+esc(avoidLabel(a))+' <i class="ti ti-x"></i></span>';});if(!h){xcond.style.display='none';xcond.innerHTML='';return;}xcond.style.display=(mode==='explore')?'flex':'none';xcond.innerHTML='<span class="muted" style="font-size:10.5px;flex:none">当前条件</span>'+h;}
   xcond.addEventListener('click',function(e){var tg=e.target.closest&&e.target.closest('.tag');if(!tg)return;var k=tg.getAttribute('data-xk'),a=tg.getAttribute('data-xa');if(k){exploreProfile[k]='';}else if(a!==null){avoidList(exploreProfile).splice(+a,1);}renderXCond();addAI('已去掉这个条件（只影响本次）。继续补充或直接出结果。');scroll();});
   var _switchMode2=switchMode;switchMode=function(m){_switchMode2(m);if(m==='explore')renderXCond();else xcond.style.display='none';};
   /* 调试入口 */
