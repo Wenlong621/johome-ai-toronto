@@ -141,6 +141,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -1037,7 +1038,7 @@ return null;}
   /* ---------- 找房 Goal：定时推荐任务 + 工作台 ---------- */
   function activeGoal(){for(var i=goals.length-1;i>=0;i--)if(goals[i].status!=='已删除')return goals[i];return null;}
   function goalName(p){var parts=[],t=p.tNb||p.tZone||p.tCity;if(t)parts.push(t.split('、')[0]);if(p.beds)parts.push(p.beds.replace('室','房'));if(p.htype)parts.push(typeCN(p.htype));var br=budgetRange(p.budget);if(br)parts.push('≤'+br[1]+'万');return parts.join(' ')||'盯房任务';}
-  function askGoal(){ask('要不要让我长期盯这类房？按你定的周期到点自动推一批新房源（每批最多 10 套，可改）。',[{label:'每天'},{label:'每 3 天'},{label:'每周'},{label:'暂不用'}],function(v){if(/暂/.test(v)){typing(function(){addAI('好的。之后想让我盯，出完房源再说一声就行。');if(lastBatch)followWhich(lastBatch);});return;}createGoal(v);});}
+  function askGoal(){ask('如果这批方向对了，可以让我按这组条件持续找：每到周期自动推一批新上架的匹配房源，最多 10 套。多久推一次？',[{label:'每天'},{label:'每 3 天'},{label:'每周'},{label:'先不用'}],function(v){if(/暂|先不/.test(v)){typing(function(){addAI('好的。之后想让我盯，出完房源再说一声就行。');if(lastBatch)followWhich(lastBatch);});return;}createGoal(v);});}
   function createGoal(period){if(goals.filter(function(g){return g.status!=='已删除'&&g.status!=='已暂停';}).length>=3){addAI('同时最多盯 3 组房，先暂停一组再新建。');return;}var g={id:'G'+(goals.length+1),name:goalName(goalProfile),period:period,cap:10,status:'计划中',pushed:{},batches:[],liked:[],created:new Date(),nextAt:nextDate(period),v:goalProfile._v||1,handoff:null,noMatch:0};goals.push(g);if(lastBatch&&lastBatch.mode==='goal')lastBatch.items.forEach(function(it){g.pushed[it.l.id]=1;});renderWb();typing(function(){addAI('已开始长期盯房「'+g.name+'」：'+period+'推一批、每批最多 '+g.cap+' 套，下次推送 '+fmtDate(g.nextAt)+'。顶部「AI Agent找房任务」可改周期、暂停、模拟到期推送，或找经纪接手。');if(lastBatch)followWhich(lastBatch);});}
   /* 模拟一个周期内的市场变化：几套新上架 + 一套降价（降价 ≥3% 允许再推，卡面标「已降价」） */
   function simulateMarket(g){var p=goalProfile,pool=buildPool(),cands=pool.filter(function(l){return stage1(p,l,{})&&stage2(p,l)&&!l.clone;}),r=crng(chash('mkt'+g.id+g.batches.length)),n=Math.min(cands.length,4+Math.floor(r()*4)),i,made=0,dropped=0;
