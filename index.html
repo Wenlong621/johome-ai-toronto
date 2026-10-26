@@ -143,6 +143,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v3 layer (PRD v3 2026-10-20): Explore/Goal tabs, 找房 Goal, 不考虑清单, 问 AI ===== */
 .v3tabs{display:flex;gap:6px;padding:6px 12px 7px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex:none}
 .v3tab{flex:1;padding:6px 0;border-radius:999px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer}
@@ -1103,11 +1104,13 @@ return null;}
     xTurn=hadOld?{mode:mode2,text:t,oldSnap:xClone(old)}:null;renderXCond();
     var chips=diffChips({},fresh).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(chips.length)addBlock(understoodHTML(xTag().concat(chips),xFlipBtn()));
     var qa=matchQA(t);if(qa){runQA(qa,false);return;}
-    var wantsListing=/房源|房子|套房|几套|listing|找房|看房|出房/i.test(t)||(!isRec(t)&&!!(exploreProfile.budget||exploreProfile.htype||exploreProfile.beds));
-    if(isRec(t)&&!/房源|房子|套房|几套|listing/i.test(t)){freeRecommend(t);return;}
+    /* 探索模式：说完直接出结果；只有结果类型不明确时才追问一次 */
+    var wantsListing=/房源|房子|套房|几套|listing|找房|看房|出房/i.test(t),wantsRegion=/社区|小区|片区|生活圈|商圈|学校|学区|名校|城市|哪个市|哪个区|区域|地段/.test(t);
     if(wantsListing){askListingReqs(function(){batchFlow();});return;}
+    if(wantsRegion||isRec(t)){freeRecommend(t);return;}
+    if(exploreProfile.budget||exploreProfile.htype||exploreProfile.beds){askListingReqs(function(){batchFlow();});return;}
     if(!chips.length){typing(function(){addAI('这句我没理解：「'+esc(t)+'」。可以说条件（「'+V3.examples[0]+'」）、要社区 / 生活圈 / 学校推荐，或问市场问题。');});return;}
-    typing(function(){addAI('条件已加上（只在本次有效）。继续补充，或直接出结果。');quickAct([{label:'出房源',icon:'ti-home-search',fn:function(){askListingReqs(function(){batchFlow();});}},{label:'推荐社区',icon:'ti-map-pin',fn:function(){freeRecommend('推荐几个社区');}}]);});}
+    typing(function(){addAI('这次想看什么？');quickAct([{label:'出房源',icon:'ti-home-search',fn:function(){askListingReqs(function(){batchFlow();});}},{label:'推荐社区',icon:'ti-map-pin',fn:function(){freeRecommend('推荐几个社区');}},{label:'推荐生活圈',icon:'ti-map',fn:function(){freeRecommend('推荐几个生活圈');}}],'live');});}
   var _doSend=doSend;doSend=function(){var t=inp.value.trim();if(!t)return;if(mode==='explore'){inp.value='';xSend(t);return;}if(mustPending){inp.value='';handleMustText(t);return;}lastNeg=[];_doSend();var added=lastNeg.filter(function(a){return !a.raw;});var raw=lastNeg.filter(function(a){return a.raw;});if(added.length||raw.length){var parts=added.map(avoidLabel);var m='';if(parts.length)m+='好的，'+parts.join('、')+' —— 已记入「不考虑」清单'+(added.some(function(a){return !a.hard&&!a.thr;})?'（临街这类无字段项由 AI 判断降序，不硬剔除）':'')+'。';if(raw.length)m+='「'+raw.map(function(a){return a.value;}).join('」「')+'」不在白名单里，记了原话，交接经纪时一起给。';if(m)addAI(m);}};
   sendBtn.onclick=function(){doSend();};
   var rstEl=root.querySelector('.rst'),_rst=rstEl.onclick;rstEl.onclick=function(){if(mode!=='goal')switchMode('goal');goals=[];lastBatch=null;gDisliked={};xDisliked={};goalAskedV=-1;handoffProposed=false;exploreProfile={};modeState.explore={answer:null,lastResult:null};xchat.innerHTML='';_rst();goalProfile.avoid=[];goalProfile.avoidRaw=[];goalProfile.feeMax=0;goalProfile._v=1;renderWb();};
