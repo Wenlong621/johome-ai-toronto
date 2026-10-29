@@ -145,6 +145,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -203,6 +204,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v3av i{cursor:pointer;font-size:11px}
 .v3mini{padding:4px 9px;border-radius:999px;font-size:11px;border:none;background:#0F6E56;color:#fff;display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
 .v3mini.ghost{background:transparent;border:0.5px solid #B07A12;color:#6B4E12}
+.v4tiles{filter:saturate(.55) brightness(1.04)}
 </style>
 </head>
 <body>
@@ -1149,7 +1151,7 @@ return null;}
 
   /* ---------- 地图：图层组、房源 pin、范围多边形、条件图层、卡片 ↔ pin 联动 ---------- */
   var map=null,LG={pins:null,areas:null,cond:null},markers=[],lgOn={pins:true,areas:true,cond:true};
-  function ensureMap(){if(map)return map;if(typeof L==='undefined')return null;map=L.map(mapEl,{zoomControl:false,attributionControl:false});L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(map);map.setView(V4.center,10);LG.pins=L.layerGroup().addTo(map);LG.areas=L.layerGroup().addTo(map);LG.cond=L.layerGroup().addTo(map);setTimeout(function(){map.invalidateSize();},200);return map;}
+  function ensureMap(){if(map)return map;if(typeof L==='undefined')return null;map=L.map(mapEl,{zoomControl:false,attributionControl:false});L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,className:'v4tiles'}).addTo(map);map.setView(V4.center,10);LG.pins=L.layerGroup().addTo(map);LG.areas=L.layerGroup().addTo(map);LG.cond=L.layerGroup().addTo(map);setTimeout(function(){map.invalidateSize();},200);return map;}
   function pinIcon(n,price,active){return L.divIcon({className:'v4pinwrap',html:'<div class="v4mpin'+(active?' on':'')+'"><b>'+n+'</b>'+(price?('<span>$'+price+'万</span>'):'')+'</div>',iconSize:[0,0]});}
   function setLayers(spec){var m=ensureMap();if(!m)return;LG.pins.clearLayers();LG.areas.clearLayers();LG.cond.clearLayers();markers=[];var bounds=[];
     (spec.polys||[]).forEach(function(p){var pl=L.polygon(p.pts,{color:p.color||'#0F6E56',weight:p.dashed?1.5:2,dashArray:p.dashed?'5,5':null,fillColor:p.fill||p.color||'#1D9E75',fillOpacity:p.fillOpacity==null?0.1:p.fillOpacity});pl.addTo(p.cond?LG.cond:LG.areas);if(p.label)pl.bindTooltip(p.label,{permanent:true,direction:'center',className:'v4tip'});p.pts.forEach(function(x){bounds.push(x);});});
@@ -1289,7 +1291,7 @@ return null;}
   var smap=null,xLast='';
   function openSearchPage(){xProfile={};xLast='';openPage(dhd2('搜索栏 AI · 不记档案')+'<div class="v4sbar"><input class="inp" id="v4sq" placeholder="用一句话搜：区域 / 预算 / 房型 / 不要什么…"/><button class="send" id="v4sgo"><i class="ti ti-search"></i></button></div><div id="v4smap"></div><div class="dscroll" id="v4sres"><div class="muted" style="font-size:12px;line-height:1.55">这是现有搜索页的 AI 入口：你说的条件会解析成筛选器直接过滤房源，列表和地图照常显示。这里的输入、反馈都不写入档案；想让我记住，点结果下方「存到我的档案」。</div><div class="qr" style="padding-left:0">'+V4.xexamples.map(function(x){return '<button class="q" data-sx="'+esc(x)+'">'+esc(x)+'</button>';}).join('')+'</div></div>');
     var q=detail.querySelector('#v4sq'),go=detail.querySelector('#v4sgo');go.onclick=function(){var t=q.value.trim();if(!t)return;runSearch(t);};q.addEventListener('keydown',function(e){if(e.key==='Enter')go.onclick();});var n=detail.querySelectorAll('[data-sx]'),i;for(i=0;i<n.length;i++)(function(b){b.onclick=function(){q.value=b.getAttribute('data-sx');go.onclick();};})(n[i]);
-    var el=detail.querySelector('#v4smap');if(typeof L!=='undefined'){smap=L.map(el,{zoomControl:false,attributionControl:false});L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(smap);smap.setView(V4.center,10);setTimeout(function(){smap.invalidateSize();},150);}}
+    var el=detail.querySelector('#v4smap');if(typeof L!=='undefined'){smap=L.map(el,{zoomControl:false,attributionControl:false});L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,className:'v4tiles'}).addTo(smap);smap.setView(V4.center,10);setTimeout(function(){smap.invalidateSize();},150);}}
   function runSearch(t){var sv=profile,fresh={};profile=fresh;extracting='x';lastNeg=[];try{extract(t);}catch(e){}extracting='';profile=sv;
     /* 新需求 / 补充：带区域且不同 → 新；仅属性 → 补充 */
     var old=xProfile,regNew=['tCity','tZone','tNb','district','school','dest'].some(function(k){return fresh[k]&&fresh[k]!==old[k];}),isAdd=!regNew&&xHas(old)&&!/换个|重新找|新需求/.test(t);
