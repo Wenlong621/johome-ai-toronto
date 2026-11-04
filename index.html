@@ -147,6 +147,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -206,6 +207,9 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v3mini{padding:4px 9px;border-radius:999px;font-size:11px;border:none;background:#0F6E56;color:#fff;display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
 .v3mini.ghost{background:transparent;border:0.5px solid #B07A12;color:#6B4E12}
 .v4tiles{filter:saturate(.55) brightness(1.04)}
+.v4body.nomap #v4map,.v4body.nomap .v4legend{display:none}
+.v4body.nomap .v4sheet{height:100%!important;border-radius:0;box-shadow:none;transition:none}
+.v4body.nomap .v4handle{display:none}
 </style>
 </head>
 <body>
@@ -1138,7 +1142,10 @@ return null;}
     var legend=document.createElement('div');legend.className='v4legend';legend.innerHTML='<button class="on" data-lg="pins">房源</button><button class="on" data-lg="areas">范围</button><button class="on" data-lg="cond">条件</button>';body.appendChild(legend);
     var sheet=document.createElement('div');sheet.className='v4sheet half';sheet.innerHTML='<div class="v4handle"><span></span></div>';body.appendChild(sheet);sheet.appendChild(chatEl);sheet.appendChild(inbarEl);
     window.__v4dom={body:body,mapEl:mapEl,sheet:sheet,legend:legend};})();
-  var sheetEl=window.__v4dom.sheet,mapEl=window.__v4dom.mapEl,legendEl=window.__v4dom.legend;
+  var sheetEl=window.__v4dom.sheet,mapEl=window.__v4dom.mapEl,legendEl=window.__v4dom.legend,bodyEl=window.__v4dom.body;
+  function mapShown(){return !bodyEl.classList.contains('nomap');}
+  function revealMap(){if(mapShown())return;bodyEl.classList.remove('nomap');ensureMap();setSheet('half');setTimeout(function(){if(map)map.invalidateSize();},300);}
+  function hideMap(){bodyEl.classList.add('nomap');sheetEl.className='v4sheet full';}
   function setSheet(st){sheetEl.className='v4sheet '+st;setTimeout(function(){if(map)map.invalidateSize();},260);}
   (function(){var h=sheetEl.querySelector('.v4handle'),sy=0,sh=0,drag=false;h.addEventListener('click',function(){setSheet(sheetEl.classList.contains('full')?'half':'full');});
     function start(y){sy=y;sh=sheetEl.offsetHeight;drag=true;sheetEl.style.transition='none';}
@@ -1183,7 +1190,7 @@ return null;}
     if(t.relaxOpts&&t.relaxOpts.length)h+='<div class="row"><div class="av"><i class="ti ti-arrows-diff"></i></div><div style="flex:1;min-width:0"><div class="bub">'+(t.strictN===0?'要不要放宽一项再看？':'想看更多的话，可以放宽一项：')+'</div><div class="qr" style="padding-left:0;margin-top:5px">'+t.relaxOpts.map(function(o,i){return '<button class="q" data-relax="'+i+'">'+esc(o.label)+' · 多 '+o.gain+' 套</button>';}).join('')+(t.strictN===0?'<button class="q ghost" data-relax="keep">先不改，有新房源每天告诉我</button>':'')+'</div></div></div>';
     (t.extra||[]).forEach(function(x){h+='<div class="row"><div class="av"><i class="ti '+(x.icon||'ti-sparkles')+'"></i></div><div style="flex:1;min-width:0">'+(x.text?('<div class="bub">'+x.text+'</div>'):'')+(x.chips&&x.chips.length?('<div class="qr" style="padding-left:0;margin-top:5px">'+x.chips.map(function(c,i){return '<button class="q" data-extra="'+x.id+':'+i+'">'+(c.icon?('<i class="ti '+c.icon+'"></i>'):'')+esc(c.label)+'</button>';}).join('')+'</div>'):'')+'</div></div>';});
     el.innerHTML=h;wireTurn(t);scroll();
-    if(t.layers){t.layers.cardsEl=el.querySelector('.v4scroll');setLayers(t.layers);linkCards(t.layers.cardsEl);}}
+    if(t.layers){revealMap();t.layers.cardsEl=el.querySelector('.v4scroll');setLayers(t.layers);linkCards(t.layers.cardsEl);}}
   function wireTurn(t){var el=t.el,n,i;n=el.querySelectorAll('[data-tap]');for(i=0;i<n.length;i++)(function(c){c.onclick=function(){var k=c.getAttribute('data-kind'),id=c.getAttribute('data-tap'),ct=c.getAttribute('data-city')||'';if(k==='v3')openListingV3(id);else if(k==='nb')openCommunity(id,ct);else if(k==='zone')openZonePage(id);else if(k==='city')openCityPage(id);else if(k==='school')openSchoolPage(id);else if(k==='district')openDistrictPage(id,ct);else if(t.tap)t.tap(id,ct);};})(n[i]);
     n=el.querySelectorAll('[data-vall]');for(i=0;i<n.length;i++)(function(c){c.onclick=function(){if(t.batch)openBatchPage(t.batch);};})(n[i]);
     n=el.querySelectorAll('[data-askv]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){answerAsk(t,b.getAttribute('data-askv'));};})(n[i]);
@@ -1273,10 +1280,10 @@ return null;}
     var kind=detectIntent(t,chips);
     if(kind==='need'){typing(function(){addAI('先告诉我一个方向就行：想住哪、预算多少、或在哪上班？下面任选一句试试。');quickAct(V4.examples.map(function(x){return {label:x,fn:function(){inp.value=x;doSend();}};}),'live');});return;}
     if(kind==='afford'&&!affordHaveInput()){typing(function(){addAI('算可负担性需要几个数，填一下（可只算这次）：');openAffordForm(function(){affordReply('');});});return;}
-    var tn=newTurn();tn.kind=kind;tn.text=t;typing(function(){buildTurn(tn);renderTurn(tn);setSheet('half');});}
+    var tn=newTurn();tn.kind=kind;tn.text=t;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
   doSend=function(){var t=inp.value.trim();if(!t)return;inp.value='';v4Send(t);};sendBtn.onclick=function(){doSend();};
   var _renderTurn=renderTurn;renderTurn=function(t){_renderTurn(t);pendingAsk=t.ask?{turn:t}:null;};
-  function opening(){list.innerHTML='';turns=[];lastTurn=null;pendingAsk=null;addAI(V4.opening);quickAct(V4.examples.map(function(x){return {label:x,fn:function(){inp.value=x;doSend();}};}),'live');ensureMap();if(map){LG.pins.clearLayers();LG.areas.clearLayers();LG.cond.clearLayers();map.setView(V4.center,10);}setSheet('half');}
+  function opening(){list.innerHTML='';turns=[];lastTurn=null;pendingAsk=null;addAI(V4.opening);quickAct(V4.examples.map(function(x){return {label:x,fn:function(){inp.value=x;doSend();}};}),'live');if(map){LG.pins.clearLayers();LG.areas.clearLayers();LG.cond.clearLayers();map.setView(V4.center,10);}hideMap();}
 
   /* ---------- 每日静默推荐（模拟次日执行） ---------- */
   function simulateDaily(){if(!daily.on){typing(function(){addAI('每日推荐已关闭，档案页可打开。');});return;}if(!dailyEligible()){var miss=[];if(!hasRegion(profile))miss.push('区域');if(!profile.htype)miss.push('房型');if(!profile.budget)miss.push('预算');if(!profile.beds)miss.push('卧室数');typing(function(){addAI('还不满足每日推荐资格，差：'+miss.join('、')+'。说一句就行。');});return;}
