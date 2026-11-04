@@ -153,6 +153,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1211,10 +1212,12 @@ return null;}
     n=el.querySelectorAll('[data-extra]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){var pr=b.getAttribute('data-extra').split(':'),x=(t.extra||[]).filter(function(e){return e.id===pr[0];})[0];if(x&&x.chips[+pr[1]]){var c=x.chips[+pr[1]];b.parentNode.querySelectorAll('button').forEach(function(q){q.disabled=true;q.style.opacity='0.5';});c.fn();}};})(n[i]);
     n=el.querySelectorAll('[data-aff]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){affAction(b);};})(n[i]);}
   function refreshTurn(t){t.asks=null;t.relax=t.relax||null;buildTurn(t);renderTurn(t);}
-  function answerAsk(t,f,v){if(v==='__skip'){(t.asks||[]).forEach(function(a){skipCount[a.field]=(skipCount[a.field]||0)+1;});t.skipped=true;addUser('跳过');}else{profile[f]=v;markSrc([f],'追问点选');pref();addUser(v);}refreshTurn(t);}
+  function lockAsk(t){if(!t.el)return;var n=t.el.querySelectorAll('.v4askrow button,.v4askrow input,[data-askok],[data-askv="__skip"]'),i;for(i=0;i<n.length;i++){n[i].disabled=true;n[i].style.opacity='0.55';n[i].style.pointerEvents='none';}var ok=t.el.querySelector('[data-askok]');if(ok)ok.style.display='none';t.asks=null;if(pendingAsk&&pendingAsk.turn===t)pendingAsk=null;}
+  function continueTurn(from){var tn=newTurn();tn.kind=from.kind;tn.text=from.text;tn.skipped=from.skipped;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
+  function answerAsk(t,f,v){if(v==='__skip'){(t.asks||[]).forEach(function(a){skipCount[a.field]=(skipCount[a.field]||0)+1;});t.skipped=true;lockAsk(t);addUser('跳过');continueTurn(t);return;}profile[f]=v;markSrc([f],'追问点选');pref();lockAsk(t);addUser(v);continueTurn(t);}
   /* 确定：把选项 / 自由输入装配成一句完整的话，走正常的输入通道（抽取 → 回显 → 原地刷新） */
   var ASK_PHRASE={budget:function(v){return '预算 '+v;},htype:function(v){return '房型 '+v;},beds:function(v){return /室|房/.test(v)?v:(v+' 室');},kids:function(v){return '孩子读'+v;},dest:function(v){return /不固定/.test(v)?'工作地点不固定':('在 '+v+' 上班');},mustHave:function(v){return '商圈要有'+v;}};
-  function confirmAsk(t){var parts=[],sel=t.askSel||{},el=t.el;(t.asks||[]).forEach(function(a){var v=sel[a.field]||'';var fi=el.querySelector('[data-askfree="'+a.field+'"]');if(!v&&fi&&fi.value.trim())v=fi.value.trim();if(v)parts.push((ASK_PHRASE[a.field]||function(x){return x;})(v));});if(!parts.length){addAI('还没选，点选项或直接输入一项再确定；不需要就点「跳过」。');return;}var sentence=parts.join('，');askConfirmTurn=t;v4Send(sentence);}
+  function confirmAsk(t){var parts=[],sel=t.askSel||{},el=t.el;(t.asks||[]).forEach(function(a){var v=sel[a.field]||'';var fi=el.querySelector('[data-askfree="'+a.field+'"]');if(!v&&fi&&fi.value.trim())v=fi.value.trim();if(v)parts.push((ASK_PHRASE[a.field]||function(x){return x;})(v));});if(!parts.length){addAI('还没选，点选项或直接输入一项再确定；不需要就点「跳过」。');return;}var sentence=parts.join('，');lockAsk(t);askConfirmTurn=t;v4Send(sentence);}
   var askConfirmTurn=null;
   function keepStrict(t){addUser('先不改，有新房源每天告诉我');t.relaxOpts=[];renderTurn(t);typing(function(){addAI(dailyEligible()?('好的。每天 '+daily.time+' 我只推完全符合的新上架房源，不放宽。'):'好的。把区域、房型、预算、卧室数说齐，我就能每天帮你看新上架。');});}
   function applyRelax(t,o){addUser(o.label);t.relax={opt:o.opt,label:o.label,kind:o.kind};buildTurn(t);renderTurn(t);
@@ -1293,8 +1296,8 @@ return null;}
   /* ---------- 输入分发 ---------- */
   function showUndo(before,chips){var r=document.createElement('div');r.className='row';r.innerHTML='<div class="av" style="background:var(--color-background-secondary);color:#0F6E56"><i class="ti ti-database"></i></div><div class="v4undo">已记入档案：'+chips.map(function(c){return esc(c.t);}).join('、')+'<button class="v3mini ghost" data-undo="1">撤销</button></div>';list.appendChild(r);r.querySelector('[data-undo]').onclick=function(){restore(profile,before);chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();r.querySelector('.v4undo').innerHTML='已撤销，档案回到上一版本（v'+(profile._v)+'）';if(lastTurn&&lastTurn.kind)refreshTurn(lastTurn);};scroll();}
   function v4Send(t){addUser(t);var before=snap(profile);lastNeg=[];extract(t);var chips=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(chips.length)showUndo(before,chips);
-    if(askConfirmTurn){var tc=askConfirmTurn;askConfirmTurn=null;pendingAsk=null;if(!chips.length)addAI('这句我没抽到可用的条件，按原条件继续。');refreshTurn(tc);return;}
-    if(pendingAsk&&pendingAsk.turn.asks){var hit=pendingAsk.turn.asks.some(function(a){return profile[a.field]&&profile[a.field]!==before[a.field];});if(hit){var tt=pendingAsk.turn;pendingAsk=null;refreshTurn(tt);return;}}
+    if(askConfirmTurn){var tc=askConfirmTurn;askConfirmTurn=null;pendingAsk=null;if(!chips.length)addAI('这句我没抽到可用的条件，按原条件继续。');continueTurn(tc);return;}
+    if(pendingAsk&&pendingAsk.turn.asks){var hit=pendingAsk.turn.asks.some(function(a){return profile[a.field]&&profile[a.field]!==before[a.field];});if(hit){var tt=pendingAsk.turn;lockAsk(tt);continueTurn(tt);return;}}
     var kind=detectIntent(t,chips);
     if(kind==='need'){typing(function(){addAI('先告诉我一个方向就行：想住哪、预算多少、或在哪上班？下面任选一句试试。');quickAct(V4.examples.map(function(x){return {label:x,fn:function(){inp.value=x;doSend();}};}),'live');});return;}
     if(kind==='afford'&&!affordHaveInput()){typing(function(){addAI('算可负担性需要几个数，填一下（可只算这次）：');openAffordForm(function(){affordReply('');});});return;}
