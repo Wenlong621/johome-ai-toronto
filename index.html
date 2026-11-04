@@ -156,6 +156,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1291,10 +1292,10 @@ return null;}
       else{t.html='<div class="v4scroll">'+names.map(function(c,i){var a=CITYCARD[c];return citycard(a[0],a[1],a[2],a[3],a[4],a[5]).replace('data-tap="'+a[0]+'"','data-tap="'+a[0]+'" data-kind="city" data-idx="'+(i+1)+'"').replace(/<\/div><\/div>$/,(p.apprec?apprecHTML(c,c):'')+'</div></div>');}).join('')+'</div>';t.layers={pins:[],polys:names.map(function(c){return {pts:blob(cityCtr(c),5,'city'+c,20),label:c,fillOpacity:0.07};}),circles:[],points:[]};}
       t.extra.push({id:'swap',chips:[{label:useZone?'按城市看':'按生活圈看',icon:useZone?'ti-building-skyscraper':'ti-map-2',fn:function(){t.kind=useZone?'city':'zone';refreshTurn(t);}}]});
       t.asks=firstMissing(['dest','budget']);return;}
-    if(k==='school'){var seg=/小学/.test(p.kids||'')?'小学':/学龄前/.test(p.kids||'')?'学龄前':'中学',sp=p.schoolPref||'公立高分',segPool=SCHOOL_POOL[seg]||SCHOOL_POOL['中学'],sa=(segPool[sp]||segPool['公立高分']||[]).filter(function(x){return !(t.excludeNames&&t.excludeNames.indexOf(x[0])>=0);}).slice(0,4);
+    if(k==='school'){t.asks=t.skipped?[]:firstMissing(['kids','htype','budget']);if(t.asks.length){t.html='';t.lead='';t.layers=null;t.extra=[];t.askFirst=true;t.askHead='先补上孩子学段、房型和预算，我确认学区内有对应房源供应后再推学校（选完点确定）：';t.pick=null;return;}t.askFirst=false;var seg=/小学/.test(p.kids||'')?'小学':/学龄前/.test(p.kids||'')?'学龄前':'中学',sp=p.schoolPref||'公立高分',segPool=SCHOOL_POOL[seg]||SCHOOL_POOL['中学'],sa=(segPool[sp]||segPool['公立高分']||[]).filter(function(x){return !(t.excludeNames&&t.excludeNames.indexOf(x[0])>=0);}).slice(0,4);
       t.lead='按「'+(p.kids||'中学')+(sp?(' · '+sp):'')+'」'+(p.tCity?('，优先 '+p.tCity+' 附近'):'')+'，这几所最符合（点开看详情；说「要 X 的 '+V4.catchWord+'房源」直接出房）：';t.html='<div class="v4scroll">'+sa.map(function(s,i){return schoolcard(s[0],s[1],s[2],s[3]).replace('data-kind="school"','data-kind="school" data-idx="'+(i+1)+'"');}).join('')+'</div>';
       t.layers={pins:[],polys:sa.map(function(s){return {pts:blob(schoolGeo(s[0]),1.5,'cat'+s[0],16),color:'#8A5A0B',fillOpacity:0.07,cond:true,label:s[0]+' · '+V4.catchWord};}),circles:[],points:sa.map(function(s,i){return {geo:schoolGeo(s[0]),icon:'ti-school',label:(i+1)+''};})};
-      t.pick={kind:'school',noun:'学校',single:true,names:sa.map(function(x){return x[0];})};t.asks=firstMissing(['kids']);return;}
+      t.pick={kind:'school',noun:'学校',single:true,names:sa.map(function(x){return x[0];})};t.asks=[];return;}
     if(k==='district'){var must=(p.mustHave||'').split('、').filter(Boolean),feel=feelKeyOfTone(p.tone),cands=allDistricts().map(function(d){d.poi=distPOI(d.name,d.city,d.line);d.type=distType(d.name,d.line);return d;});function ok(d,cat){return (d.poi[cat]||0)>=(POI_MIN[cat]||2);}
       var use=must.slice(),dropped=[],full=[];while(use.length){full=cands.filter(function(d){return use.every(function(c){return ok(d,c);});});if(full.length)break;dropped.unshift(use.pop());}if(!full.length)full=cands.slice();full.forEach(function(d){var s=0;use.forEach(function(c){s+=Math.min(1,(d.poi[c]||0)/((POI_MIN[c]||2)*3));});d._s=s*10+(feel&&d.type===feel?10:0)+(hasRail(d.city)?1:0);});full.sort(function(a,b){return b._s-a._s;});if(t.excludeNames)full=full.filter(function(d){return t.excludeNames.indexOf(d.name)<0;});var top=full.slice(0,3);t.pick={kind:'district',noun:'商圈',names:top.map(function(d){return d.name;})};
       t.lead=(must.length?('按你要的「'+must.join('、')+'」在各商圈半径内数了店铺'):'按商圈氛围')+(feel?('，再按「'+p.tone+'」排序'):'')+(dropped.length?('。没有商圈能同时满足全部，先放掉了「'+dropped.join('、')+'」'):'')+'，这 '+top.length+' 个最合适（说「X 商圈的房源」直接出房）：';
