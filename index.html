@@ -151,6 +151,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1250,7 +1251,7 @@ return null;}
       var cl=condLayers(p,t.relax);var polys=regionPolys(p).concat(cl.polys);if(t.relax&&t.relax.kind==='region'){var rs=t.relax.opt.regionSet,kk;for(kk in rs){if(kk.indexOf('city:')===0)polys.push({pts:blob(cityCtr(kk.slice(5)),4.5,'cityx'+kk,20),dashed:true,fillOpacity:0.03,label:kk.slice(5)});if(kk.indexOf('nb:')===0&&!(regionSet(p)||{})[kk])polys.push({pts:blob(nbGeo(kk.slice(3)),1.2,'nbx'+kk,16),dashed:true,fillOpacity:0.04,label:kk.slice(3)});}}
       t.layers={pins:b.items.map(function(it){return {geo:it.l.geo,price:it.l.price,id:it.l.id};}),polys:polys,circles:cl.circles,points:cl.points};
       t.asks=firstMissing(['budget','htype','beds']);
-      if(dailyEligible()&&!daily.enabledOnce&&daily.on){daily.enabledOnce=true;t.extra.push({id:'daily',keep:true,icon:'ti-bell',text:'已开启每日推荐：每天 '+daily.time+'（'+V4.tz+'）帮你看新上架、完全符合才推，不放宽、不重复。已请求系统推送权限（演示）。',chips:[{label:'关闭',fn:function(){daily.on=false;renderSummary();addAI('已关闭每日推荐，档案页可随时打开。');}},{label:'改时间',icon:'ti-clock',fn:function(){ask('每天几点推？',[{label:'08:00'},{label:'12:00'},{label:'19:00'}],function(v){daily.time=v;addAI('已改为每天 '+v+'。');});}},{label:'模拟次日推送',icon:'ti-player-play',fn:function(){simulateDaily();}}]});}
+      if(dailyEligible()&&!daily.enabledOnce&&daily.on){daily.enabledOnce=true;/* 资格达成：静默开启每日推荐（演示：此处请求系统推送权限），不在对话里提示 */}
       return;}
     if(k==='nb'){var rows=nbCandidates(p),hasBud=!!budgetRange(p.budget),kw=TONEKW[p.tone]||[],bus=/公交|天车|地铁/.test(p.mode||''),kids=/孩|三代/.test(p.family||'');
       rows=rows.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]),th=0,j;for(j=0;j<kw.length;j++)if(((n[3]||'')+nbTags(n[0],city).join(' ')).indexOf(kw[j])>=0)th++;var pr=p.priority?(nbFocusSort([n],p.priority).length?1:0):0;var ap=apprecTier(n[0],city);row._s=(cov===null?40:cov*0.6)+(bus&&hasRail(city)?12:0)+(kids&&sch>=8?10:0)+th*8+(p.apprec==='很看重'?ap.score*0.25:(p.apprec==='兼顾'?ap.score*0.05:0));row._cov=cov;row._ap=ap;row._city=city;return row;}).filter(function(r){return p.apprec!=='只要增值潜力高的'||r._ap.tier==='高';}).sort(function(a,b){return b._s-a._s;}).slice(0,4);
