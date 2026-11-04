@@ -157,6 +157,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -226,6 +227,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v4askin{height:28px;font-size:11px;padding:0 10px;margin-top:4px;width:100%;box-sizing:border-box}
 .v4askq .q.on{background:#0F6E56;color:#fff;border-color:#0F6E56}
 .v4pickq .q.on{background:#0F6E56;color:#fff;border-color:#0F6E56}
+.v3und .tag.new{border-color:#0F6E56;color:#0F6E56;font-weight:600}
 </style>
 </head>
 <body>
@@ -930,7 +932,7 @@ return null;}
     if(/\bib\b/i.test(s))profile.schoolPref='IB 课程';else if(/french\s*immersion|法语沉浸|法文/i.test(s))profile.schoolPref='French Immersion';else if(/私立|私校/.test(s))profile.schoolPref='私立';else if(/公立|高分校|名校|好学校/.test(s)&&!profile.schoolPref)profile.schoolPref='公立高分';
     var sn=findSchool(s);if(sn)profile.school=sn;
     if(/繁华|都市核心|市中心生活|热闹/.test(s))profile.tone=profile.tone||'繁华都市';else if(/文艺|小资|情调|咖啡/.test(s))profile.tone='文艺小资';else if(/烟火|多元|美食/.test(s))profile.tone='多元烟火气';else if(/安逸|慢生活|慢节奏|悠闲|清净/.test(s))profile.tone='安逸慢生活';else if(/高端|精致|豪宅/.test(s))profile.tone='精致高端';
-    var pr=[];if(/治安|安全/.test(s))pr.push('治安安全');if(/保值|增值|升值/.test(s))pr.push('保值增值');if(/步行|骑行|走路方便/.test(s))pr.push('步行/骑行便利');if(/配套|便利|购物方便/.test(s))pr.push('生活配套完善');if(/性价比|便宜|实惠/.test(s))pr.push('高性价比');if(pr.length)profile.priority=pr.slice(0,2).join('、');
+    var pr=[];if(/治安|安全/.test(s))pr.push('治安安全');if(/保值|增值|升值/.test(s))pr.push('保值增值');if(/步行|骑行|走路方便/.test(s))pr.push('步行/骑行便利');if(/配套|便利|购物方便/.test(s))pr.push('生活配套完善');if(/性价比|便宜|实惠/.test(s))pr.push('高性价比');if(/自然|绿化|公园|山景|湖边|海边|户外|环境好|森林|绿地|树多/.test(s))pr.push('自然环境');if(pr.length)profile.priority=pr.slice(0,2).join('、');
     var inc=t.match(/(年|家庭|税前)?收入\s*([\d.]+)\s*(万|w|k)?/i);if(inc){var iv=parseFloat(inc[2]);if(/k/i.test(inc[3]||''))iv=iv/10;if(!inc[3]&&iv>1000)iv=iv/10000;afford.income=Math.round(iv*10000);}
     var dpa=t.match(/首付\s*([\d.]+)\s*(万|w)/i);if(dpa){afford.down=Math.round(parseFloat(dpa[1])*10000);profile.downPay=dpa[1]+'万';}else{var dpp=t.match(/首付\s*(\d{1,2})\s*(%|成)/);if(dpp)profile.downPay=dpp[1]+dpp[2];}
     var db=t.match(/(负债|月供|车贷|还款)\D{0,4}([\d,]+)/);if(db)afford.debts=parseInt(db[2].replace(/,/g,''),10);
@@ -1194,13 +1196,14 @@ return null;}
     return {polys:polys,circles:circles,points:points};}
   function regionPolys(p){var out=[];(p.tCity||'').split('、').filter(Boolean).forEach(function(c){out.push({pts:blob(cityCtr(c),4.5,'city'+c,20),label:c,fillOpacity:0.05});});(p.tZone||'').split('、').filter(Boolean).forEach(function(z){var zz=ZONES[z];if(!zz)return;var lat=0,lng=0;zz.nbs.forEach(function(q){var g=nbGeo(q[0],q[1]);lat+=g[0];lng+=g[1];});lat/=zz.nbs.length;lng/=zz.nbs.length;out.push({pts:blob([lat,lng],2.4,'zone'+z,18),label:z,fillOpacity:0.06});});(p.tNb||'').split('、').filter(Boolean).forEach(function(n){out.push({pts:blob(nbGeo(n),1.2,'nb'+n,16),label:n,fillOpacity:0.08});});return out;}
 
+  var _nbFocusSort=nbFocusSort;nbFocusSort=function(arr,p){if(!p||p.indexOf('自然环境')<0)return _nbFocusSort(arr,p);var rest=p.split('、').filter(function(x){return x!=='自然环境';}).join('、'),base=rest?_nbFocusSort(arr,rest):arr,re=/公园|绿|山|湖|海|自然|步道|河|森林|树|户外/;return base.slice().sort(function(a,b){return (re.test(b[3]||'')?1:0)-(re.test(a[3]||'')?1:0);});};
   /* ---------- 回复结构：AI 理解为 → 追问（可选，不阻塞）→ 导语 → 卡片 → 放宽 / 提示 ---------- */
   var turns=[],pendingAsk=null,lastTurn=null;
   function newTurn(){var t={id:'T'+(++turnSeq),kind:'',text:'',chips:[],asks:null,lead:'',html:'',tap:null,layers:null,relax:null,relaxOpts:[],extra:[],el:null};turns.push(t);lastTurn=t;return t;}
   function undHTML(chips){return '<div class="v3und"><i class="ti ti-scan" style="color:#0F6E56"></i><span>AI 理解为：</span>'+chips.map(function(c){return '<span class="tag'+(c.neg?' neg':'')+(c.cls?(' '+c.cls):'')+'">'+esc(c.t)+'</span>';}).join('')+'</div>';}
-  function condChips(kind,pending){var out=[],p=profile,UND_SKIP={firstTime:1,timeline:1,preApproved:1,downPay:1};FIELDS.forEach(function(f){if(UND_SKIP[f.k])return;var v=p[f.k];if(v)out.push({t:f.label+'：'+v});});if(p.mustHave)out.push({t:'商圈必备：'+p.mustHave});if(p.feeMax)out.push({t:'月费上限：$'+p.feeMax});if(kind==='listing'&&!pending){if(!p.budget)out.push({t:'预算：未限',cls:'soft'});if(!p.htype)out.push({t:'房型：未限',cls:'soft'});if(!p.beds)out.push({t:'卧室数：未限',cls:'soft'});}avoidList(p).forEach(function(a){out.push({t:avoidLabel(a),neg:!a.thr});});return out;}
+  function condChips(kind,pending,t){var out=[],p=profile,UND_SKIP={firstTime:1,timeline:1,preApproved:1,downPay:1},nk=(t&&t.newKeys)||[];if(t&&t.noNew)out.push({t:'这句没抽到新条件，沿用档案',cls:'soft'});FIELDS.forEach(function(f){if(UND_SKIP[f.k])return;var v=p[f.k];if(v)out.push({t:f.label+'：'+v,cls:nk.indexOf(f.k)>=0?'new':''});});if(p.mustHave)out.push({t:'商圈必备：'+p.mustHave});if(p.feeMax)out.push({t:'月费上限：$'+p.feeMax});if(kind==='listing'&&!pending){if(!p.budget)out.push({t:'预算：未限',cls:'soft'});if(!p.htype)out.push({t:'房型：未限',cls:'soft'});if(!p.beds)out.push({t:'卧室数：未限',cls:'soft'});}avoidList(p).forEach(function(a){out.push({t:avoidLabel(a),neg:!a.thr});});return out;}
   function renderTurn(t){var el=t.el;if(!el){el=document.createElement('div');el.className='v4turn';el.id=t.id;list.appendChild(el);t.el=el;}
-    var h='';var ch=condChips(t.kind,!!(t.asks&&t.asks.length));if(ch.length)h+='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div style="flex:1;min-width:0">'+undHTML(ch)+'</div></div>';
+    var h='';var ch=condChips(t.kind,!!(t.asks&&t.asks.length),t);if(ch.length)h+='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div style="flex:1;min-width:0">'+undHTML(ch)+'</div></div>';
     if(t.asks&&t.asks.length)h+='<div class="row"><div class="av"><i class="ti ti-help-circle"></i></div><div style="flex:1;min-width:0"><div class="bub v4askb">'+(t.askFirst?(t.askHead||(t.asks.length>1?'先补上这几项，我再出结果（选完点确定）：':t.asks[0].text)):(t.asks.length>1?'补上这几项，结果更准（可选，选完点确定）：':t.asks[0].text))+'</div>'+t.asks.map(function(a){return '<div class="v4askrow"><span class="v4askl">'+esc(a.label)+'</span><div style="flex:1;min-width:0"><div class="qr v4askq" style="padding-left:0">'+a.opts.map(function(o){return '<button class="q" data-askf="'+a.field+'" data-askv="'+esc(o)+'">'+esc(o)+'</button>';}).join('')+'</div><input class="inp v4askin" data-askfree="'+a.field+'" placeholder="或直接输入，如 '+esc(a.ph||a.opts[0])+'"/></div></div>';}).join('')+'<div class="qr" style="padding-left:0;margin-top:6px"><button class="q" data-askok="1" style="background:#0F6E56;color:#fff"><i class="ti ti-check"></i>确定</button><button class="q ghost" data-askf="__all" data-askv="__skip">跳过</button></div></div></div>';
     if(t.lead)h+='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bub">'+t.lead+'</div></div>';
     if(t.html)h+='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div class="v4cards" style="flex:1;min-width:0">'+t.html+'</div></div>';
@@ -1321,7 +1324,7 @@ return null;}
     var kind=detectIntent(t,chips);
     if(kind==='need'){typing(function(){addAI('先告诉我一个方向就行：想住哪、预算多少、或在哪上班？下面任选一句试试。');quickAct(V4.examples.map(function(x){return {label:x,fn:function(){inp.value=x;doSend();}};}),'live');});return;}
     if(kind==='afford'&&!affordHaveInput()){typing(function(){addAI('算可负担性需要几个数，填一下（可只算这次）：');openAffordForm(function(){affordReply('');});});return;}
-    var tn=newTurn();tn.kind=kind;tn.text=t;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
+    var tn=newTurn();tn.kind=kind;tn.text=t;tn.newKeys=chips.filter(function(c){return c.k;}).map(function(c){return c.k;});tn.noNew=!chips.length;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
   doSend=function(){var t=inp.value.trim();if(!t)return;inp.value='';v4Send(t);};sendBtn.onclick=function(){doSend();};
   var _renderTurn=renderTurn;renderTurn=function(t){_renderTurn(t);pendingAsk=(t.asks&&t.asks.length)?{turn:t}:null;};
   function opening(){list.innerHTML='';turns=[];lastTurn=null;pendingAsk=null;addAI(V4.opening);quickAct(V4.examples.map(function(x){return {label:x,fn:function(){inp.value=x;doSend();}};}),'live');if(map){LG.pins.clearLayers();LG.areas.clearLayers();LG.cond.clearLayers();map.setView(V4.center,10);}hideMap();}
