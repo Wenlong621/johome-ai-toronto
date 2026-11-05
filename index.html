@@ -163,6 +163,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1383,7 +1384,8 @@ return null;}
   function mxSave(key,model){MX.key=(key||'').replace(/\s+/g,'');MX.model=model||MX.model;try{if(MX.key)localStorage.setItem('jh_key',MX.key);else localStorage.removeItem('jh_key');localStorage.setItem('jh_model',MX.model);}catch(e){}}
   var MX_DIMS=['电梯','临街·噪音源','楼层布局','周边厌恶设施','产权形态','房型排除','朝向','所在楼层','宠物限制','出租限制','车位','洪泛区','年龄限制楼','地下室','物业费上限','房龄','排除区域','其他'];
   var MX_EXTRA=[{k:'mustHave',label:'商圈必备店铺',hint:'多个用「、」分隔，如 亚洲超市、中餐馆'},{k:'feeMax',label:'月费上限（数字，加元/月）'},{k:'income',label:'家庭税前年收入（万）'},{k:'down',label:'首付（万）'},{k:'debts',label:'每月固定负债（加元/月）'}];
-  function mxFieldSpec(){var rows=FIELDS.map(function(f){return {k:f.k,label:f.label,group:f.group,values:f.edit?f.edit.map(function(e){return e.label;}):undefined};});return rows.concat(MX_EXTRA);}
+  var MX_FREE={budget:1,time:1};
+  function mxFieldSpec(){var rows=FIELDS.map(function(f){var vs=f.edit?f.edit.map(function(e){return e.label;}):undefined;return MX_FREE[f.k]?{k:f.k,label:f.label,group:f.group,free:true,examples:vs}:{k:f.k,label:f.label,group:f.group,values:vs};});return rows.concat(MX_EXTRA);}
   function mxCurrent(){var o={},i;for(i=0;i<FIELDS.length;i++)if(profile[FIELDS[i].k])o[FIELDS[i].k]=profile[FIELDS[i].k];if(profile.mustHave)o.mustHave=profile.mustHave;if(profile.feeMax)o.feeMax=profile.feeMax;if(afford.income)o.income=afford.income;if(afford.down)o.down=afford.down;if(afford.debts)o.debts=afford.debts;o.avoid=avoidList(profile).map(function(a){return a.dim+'：'+a.value;});return o;}
   function mxSystem(){return ['你是 Johome 找房 Agent 的档案抽取模块（'+V4.region+'）。输入是用户在找房对话里说的一句话和当前档案，以 JSON 输出这句话对档案造成的变更（set / clear / avoid / note）。只做抽取，不回答问题。',
     '规则：',
@@ -1394,7 +1396,7 @@ return null;}
     '5. 否定与排除（「不要临街」「别推朝北」「不考虑 Surrey」「受不了没电梯」）：不改字段，放进 avoid，dim 必须取给定维度之一（区域用「排除区域」，没有合适维度用「其他」），hard 表示是否硬性排除。',
     '6. 通勤目的地（在哪上班 / 去哪通勤）只写 dest，不写入目标城市 / 生活圈 / 社区。',
     '7. 地名同时是学校名时（如 Richmond、Burnaby），只有句子有上学 / 学校 / 学区语境才写 school；「在 Richmond 买公寓」只写目标城市。',
-    '8. 值的口径：预算写区间，如 ≤130万、120–160万、>250万、100–120万（「100 出头」）；房型用 Townhouse / Condo / 独立屋 / 楼花；卧室数写「3室」「4室+」；可接受通勤写「30分钟 / 45分钟 / 60分钟」；孩子学段用 学龄前 / 小学 / 中学；有 values 列表的字段只能取列表里的值。',
+    '8. 值的口径：预算按用户说的具体数写，不要往 examples 的档位上靠——单个数默认是上限（「预算改成 150」「150 以内」→ ≤150万），「150 左右」→ 140–160万，「100 出头」→ 100–120万，「至少 / 不低于 150」→ >150万，两个数写区间（120–160万）；房型用 Townhouse / Condo / 独立屋 / 楼花；卧室数写「3室」「4室+」；可接受通勤写「30分钟 / 45分钟 / 60分钟」；孩子学段用 学龄前 / 小学 / 中学；有 values 列表的字段只能取列表里的值；标 free 的字段按原话写具体值，examples 只是示例格式。',
     '9. 城市名用英文规范名（本拿比→Burnaby，列治文→Richmond，温西→Vancouver West，北温→North Vancouver，西温→West Vancouver，高贵林→Coquitlam，素里→Surrey，万锦→Markham，北约克→North York，士嘉堡→Scarborough，密西沙加→Mississauga）。',
     '10. note 用一句中文说明你抽到了什么或为什么没抽（给产品经理看）。',
     'set 里每项是 {k, v}：k 取字段表里的字段键，v 是该字段的完整新值。字段表（k = 字段键，values = 允许值）：'+JSON.stringify(mxFieldSpec()),
