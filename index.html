@@ -158,6 +158,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -932,7 +933,7 @@ return null;}
     if(/\bib\b/i.test(s))profile.schoolPref='IB 课程';else if(/french\s*immersion|法语沉浸|法文/i.test(s))profile.schoolPref='French Immersion';else if(/私立|私校/.test(s))profile.schoolPref='私立';else if(/公立|高分校|名校|好学校/.test(s)&&!profile.schoolPref)profile.schoolPref='公立高分';
     var sn=findSchool(s);if(sn)profile.school=sn;
     if(/繁华|都市核心|市中心生活|热闹/.test(s))profile.tone=profile.tone||'繁华都市';else if(/文艺|小资|情调|咖啡/.test(s))profile.tone='文艺小资';else if(/烟火|多元|美食/.test(s))profile.tone='多元烟火气';else if(/安逸|慢生活|慢节奏|悠闲|清净/.test(s))profile.tone='安逸慢生活';else if(/高端|精致|豪宅/.test(s))profile.tone='精致高端';
-    var pr=[];if(/治安|安全/.test(s))pr.push('治安安全');if(/保值|增值|升值/.test(s))pr.push('保值增值');if(/步行|骑行|走路方便/.test(s))pr.push('步行/骑行便利');if(/配套|便利|购物方便/.test(s))pr.push('生活配套完善');if(/性价比|便宜|实惠/.test(s))pr.push('高性价比');if(/自然|绿化|公园|山景|湖边|海边|户外|环境好|森林|绿地|树多/.test(s))pr.push('自然环境');if(pr.length)profile.priority=pr.slice(0,2).join('、');
+    var pr=[];if(/治安|安全/.test(s))pr.push('治安安全');if(/保值|增值|升值/.test(s))pr.push('保值增值');if(/步行|骑行|走路方便/.test(s))pr.push('步行/骑行便利');if(/配套|便利|购物方便/.test(s))pr.push('生活配套完善');if(/性价比|便宜|实惠/.test(s))pr.push('高性价比');if(/自然|绿化|公园|山景|湖边|海边|户外|环境好|森林|绿地|树多/.test(s))pr.push('自然环境');if(/学区|名校|好学校|高分校/.test(s))pr.push('学区');if(pr.length)profile.priority=pr.slice(0,2).join('、');
     var inc=t.match(/(年|家庭|税前)?收入\s*([\d.]+)\s*(万|w|k)?/i);if(inc){var iv=parseFloat(inc[2]);if(/k/i.test(inc[3]||''))iv=iv/10;if(!inc[3]&&iv>1000)iv=iv/10000;afford.income=Math.round(iv*10000);}
     var dpa=t.match(/首付\s*([\d.]+)\s*(万|w)/i);if(dpa){afford.down=Math.round(parseFloat(dpa[1])*10000);profile.downPay=dpa[1]+'万';}else{var dpp=t.match(/首付\s*(\d{1,2})\s*(%|成)/);if(dpp)profile.downPay=dpp[1]+dpp[2];}
     var db=t.match(/(负债|月供|车贷|还款)\D{0,4}([\d,]+)/);if(db)afford.debts=parseInt(db[2].replace(/,/g,''),10);
@@ -1305,7 +1306,7 @@ return null;}
       t.html='<div class="v4scroll">'+top.map(function(d,i){var dm=distMetrics(d.name,d.city),checks=must.map(function(c){var hit=ok(d,c)&&use.indexOf(c)>=0;return (hit?'<span style="color:#0F6E56">✓ ':'<span style="color:#B23B2E">✗ ')+c+'·'+(d.poi[c]||0)+'</span>';}).join(' ');return districtcard(d.name,d.landmark,(checks?checks+'<br>':'')+'<span class="muted">'+d.line+'</span>','$'+dm.condo+'万','范围内 Condo 中位',dm.cnt+' 套','范围内房源',d.city).replace('data-kind="district"','data-kind="district" data-idx="'+(i+1)+'"');}).join('')+'</div>';
       t.layers={pins:[],polys:[],circles:top.map(function(d){return {ctr:districtCtr(d.city,d.name),r:900,label:d.name,cond:true};}),points:[]};
       t.asks=[];return;}
-    if(k==='qa'){var qa=matchQA(t.text);if(!qa){t.lead='这个问题我没有数据。';return;}t.lead=qa.ans;if(qa.cities&&qa.cities.length){t.html='<div class="v4scroll">'+qa.cities.map(function(c,i){var a=CITYCARD[c];return a?citycard(a[0],a[1],a[2],a[3],a[4],a[5]).replace('data-tap="'+a[0]+'"','data-tap="'+a[0]+'" data-kind="city" data-idx="'+(i+1)+'"'):'';}).join('')+'</div>';t.layers={pins:[],polys:qa.cities.filter(function(c){return !!CITYCARD[c];}).map(function(c){return {pts:blob(cityCtr(c),5,'city'+c,20),label:c,fillOpacity:0.07};}),circles:[],points:[]};}return;}
+    if(k==='qa'){var qa=matchQA(t.text);if(!qa){t.lead='这个问题我没有数据。';return;}t.lead=qa.ans;if(qa.cities&&qa.cities.length){t.html='<div class="v4scroll">'+qa.cities.map(function(c,i){var a=CITYCARD[c];return a?citycard(a[0],a[1],a[2],a[3],a[4],a[5]).replace('data-tap="'+a[0]+'"','data-tap="'+a[0]+'" data-kind="city" data-idx="'+(i+1)+'"'):'';}).join('')+'</div>';t.layers={pins:[],polys:qa.cities.filter(function(c){return !!CITYCARD[c];}).map(function(c){return {pts:blob(cityCtr(c),5,'city'+c,20),label:c,fillOpacity:0.07};}),circles:[],points:[]};var pc=qa.cities.filter(function(c){return !!CITYCARD[c];});if(t.excludeNames)pc=pc.filter(function(c){return t.excludeNames.indexOf(c)<0;});t.pick=pc.length?{kind:'city',noun:'城市',names:pc}:null;}return;}
     if(k==='afford'){var r=affordRun();t.lead='按你给的数算了一下（估算，非贷款预批）：';t.html=affordCard(r.res,r.inp);return;}}
   function feelKeyOfTone(tone){return tone==='繁华都市'?'urban':tone==='文艺小资'?'hip':tone==='安逸慢生活'?'slow':tone==='多元烟火气'?'food':'';}
   function nbCandidates(p){var rows=[];if(p.dest)rows=isoNbs(p);else if(p.school){schoolNbs(p.school).forEach(function(n){var r=rowFor(n);if(r)rows.push(r);});}else if(p.district){nbsNearDistrict(p.district.split('、')[0],distCity(p.district.split('、')[0])).forEach(function(n){var r=rowFor(n);if(r)rows.push(r);});}
