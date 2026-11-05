@@ -161,6 +161,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1378,7 +1379,7 @@ return null;}
   var MX={key:'',model:'claude-sonnet-5-5',last:null,ms:0,err:'',n:0};
   try{MX.key=localStorage.getItem('jh_key')||'';MX.model=localStorage.getItem('jh_model')||MX.model;}catch(e){}
   function mxOn(){return !!MX.key;}
-  function mxSave(key,model){MX.key=(key||'').trim();MX.model=model||MX.model;try{if(MX.key)localStorage.setItem('jh_key',MX.key);else localStorage.removeItem('jh_key');localStorage.setItem('jh_model',MX.model);}catch(e){}}
+  function mxSave(key,model){MX.key=(key||'').replace(/\s+/g,'');MX.model=model||MX.model;try{if(MX.key)localStorage.setItem('jh_key',MX.key);else localStorage.removeItem('jh_key');localStorage.setItem('jh_model',MX.model);}catch(e){}}
   var MX_DIMS=['电梯','临街·噪音源','楼层布局','周边厌恶设施','产权形态','房型排除','朝向','所在楼层','宠物限制','出租限制','车位','洪泛区','年龄限制楼','地下室','物业费上限','房龄','排除区域','其他'];
   var MX_EXTRA=[{k:'mustHave',label:'商圈必备店铺',hint:'多个用「、」分隔，如 亚洲超市、中餐馆'},{k:'feeMax',label:'月费上限（数字，加元/月）'},{k:'income',label:'家庭税前年收入（万）'},{k:'down',label:'首付（万）'},{k:'debts',label:'每月固定负债（加元/月）'}];
   function mxFieldSpec(){var rows=FIELDS.map(function(f){return {k:f.k,label:f.label,group:f.group,values:f.edit?f.edit.map(function(e){return e.label;}):undefined};});return rows.concat(MX_EXTRA);}
@@ -1412,7 +1413,8 @@ return null;}
     mxCall(t).then(function(res){row.remove();MX.last=res;MX.ms=Date.now()-t0;MX.n++;mxApply(res,t);v4After(t,before);})
       .catch(function(e){row.remove();MX.err=(e&&e.message)||String(e);addAI('<span class="muted" style="font-size:11px">模型抽取失败（'+esc(MX.err)+'），这句改用规则抽取。</span>');extract(t);v4After(t,before);});}
   /* 档案页：模型抽取设置 */
-  function mxSection(){var st=mxOn()?('已启用 · '+esc(MX.model)+(MX.n?('，本次会话抽取 '+MX.n+' 句，上一句 '+MX.ms+' ms'):'')+(MX.err?('<br><span style="color:#B23B2E">上次错误：'+esc(MX.err)+'</span>'):'')+(MX.last&&MX.last.note?('<br>上一句说明：'+esc(MX.last.note)):'')):'未启用，当前用规则抽取（演示用，关键词匹配，会有误判）';
+  function mxKeyInfo(){var k=MX.key,ok=/^sk-ant-/.test(k)&&k.length>=80;return '<br><span style="color:'+(ok?'#0F6E56':'#B23B2E')+'">key：'+esc(k.slice(0,14))+'…'+esc(k.slice(-4))+'（'+k.length+' 字符'+(ok?'，格式正常':'，格式不像 Anthropic API key：应以 sk-ant- 开头、约 100 字符，请到 console.anthropic.com → API Keys 重新复制')+'）</span>';}
+  function mxSection(){var st=mxOn()?('已启用 · '+esc(MX.model)+mxKeyInfo()+(MX.n?('，本次会话抽取 '+MX.n+' 句，上一句 '+MX.ms+' ms'):'')+(MX.err?('<br><span style="color:#B23B2E">上次错误：'+esc(MX.err)+'</span>'):'')+(MX.last&&MX.last.note?('<br>上一句说明：'+esc(MX.last.note)):'')):'未启用，当前用规则抽取（演示用，关键词匹配，会有误判）';
     return '<div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;margin:6px 2px 1px">模型抽取</div><div class="cc"><div style="font-size:11.5px;margin-bottom:8px;color:'+(mxOn()?'#0F6E56':'#8A5A0B')+'">'+st+'</div><input class="inp" type="password" data-mxkey="1" placeholder="Anthropic API key（只存在本机浏览器）" value="'+esc(MX.key)+'" style="width:100%;box-sizing:border-box;margin-bottom:6px"/><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1;font-size:12.5px">模型</div>'+['claude-sonnet-5-5','claude-haiku-5-5'].map(function(m){return '<button class="q'+(MX.model===m?' on':'')+'" data-mxmodel="'+m+'">'+m.replace('claude-','')+'</button>';}).join('')+'</div><div style="display:flex;gap:8px"><button class="q" data-mx="save" style="background:#0F6E56;color:#fff"><i class="ti ti-check"></i>保存</button><button class="q ghost" data-mx="clear">清除 key</button></div><div class="muted" style="font-size:10.5px;margin-top:8px">启用后每句输入先交给模型按档案字段表抽取（含否定、修正、追加、删除），再走后面的判意图、追问、出卡；意图判断与排序仍是原型规则。key 只存浏览器 localStorage，会消耗你的额度。</div></div>';}
   var _profilePageMx=profilePage;profilePage=function(){var h=_profilePageMx(),mark='<div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;margin:6px 2px 1px">每日推荐</div>';return h.indexOf(mark)>=0?h.replace(mark,mxSection()+mark):h+mxSection();};
   var _wirePageMx=wirePage;wirePage=function(){_wirePageMx();var n,i;
