@@ -159,6 +159,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -917,7 +918,9 @@ return null;}
   /* 学校名识别（学校库 + 城市页学校） */
   function allSchoolNames(){var out=[],seg,g,k,arr,i,c,sc,gi,it,j;for(seg in SCHOOL_POOL){g=SCHOOL_POOL[seg];for(k in g){arr=g[k];for(i=0;i<arr.length;i++)if(out.indexOf(arr[i][0])<0)out.push(arr[i][0]);}}for(c in CX){sc=(CX[c].schools||[]);for(gi=0;gi<sc.length;gi++){it=sc[gi].items||[];for(j=0;j<it.length;j++)if(out.indexOf(it[j][0])<0)out.push(it[j][0]);}}return out;}
   var SCHOOL_NAMES=null;
-  function findSchool(t){if(!SCHOOL_NAMES)SCHOOL_NAMES=allSchoolNames();var lc=t.toLowerCase(),best=null,i;for(i=0;i<SCHOOL_NAMES.length;i++){var n=SCHOOL_NAMES[i],key=n.toLowerCase().replace(/\s*(secondary|elementary|school|sec|ss|ci|hs|junior|college)\b.*$/,'').trim();if(key.length>=4&&lc.indexOf(key)>=0&&(!best||key.length>best.length)){best=key;bestName=n;}}var bestName;return best?bestName:null;}
+  function regionWord(k){var c;for(c in CITY){if(c.toLowerCase()===k)return true;var nbs=CITY[c].nbs||[],i;for(i=0;i<nbs.length;i++)if((nbs[i][0]||'').toLowerCase()===k)return true;}if(typeof ZONES!=='undefined')for(c in ZONES)if(c.toLowerCase()===k)return true;return false;}
+  /* 学校名识别：全名直接命中；只出现简称（如 Richmond / Byng）时必须有学校语境，且简称不能是城市 / 生活圈 / 社区名 */
+  function findSchool(t){if(!SCHOOL_NAMES)SCHOOL_NAMES=allSchoolNames();var lc=t.toLowerCase(),ctx=/学校|上学|读书|学区|想上|对口|catchment|中学|小学|高中|school|secondary|elementary/i.test(t),best=null,bestName=null,i;for(i=0;i<SCHOOL_NAMES.length;i++){var n=SCHOOL_NAMES[i],full=n.toLowerCase(),key=full.replace(/\s*(secondary|elementary|school|sec|ss|ci|hs|ps|ms|junior|college|academy)\b.*$/,'').trim(),hit=lc.indexOf(full)>=0?full:(ctx&&key.length>=4&&lc.indexOf(key)>=0&&!regionWord(key)?key:null);if(hit&&(!best||hit.length>best.length)){best=hit;bestName=n;}}return best?bestName:null;}
   /* 关键：抽取 = 原 extract + 否定句 + 预算原数 + 区域名 + v4 新字段（增值偏好 / 持有 / 出租 / 可负担性输入 / 学校名 / 调性 / 看重项） */
   var _extract=extract;extract=function(t){if(!t)return;var r=parseNeg(t,profile);lastNeg=r.added;var before=snap(profile);_extract(r.rest);
     var rb=r.rest.replace(/首付\s*[\d.]+\s*(万|%|成|w)/ig,'').replace(/年?收入\s*[\d.]+\s*(万|w|k)?/ig,'').replace(/负债\s*[\d,]+/g,''),rg=rb.match(/(\d{2,4})\s*(?:万|w)?\s*[–\-~到至]\s*(\d{2,4})\s*(万|w)/i),up=rb.match(/(\d{2,4})\s*(万|w)\s*(以上|起|往上|朝上)/i),bm=rb.match(/(\d{2,4})\s*(万|w)/i);
