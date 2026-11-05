@@ -162,6 +162,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1384,7 +1385,7 @@ return null;}
   var MX_EXTRA=[{k:'mustHave',label:'商圈必备店铺',hint:'多个用「、」分隔，如 亚洲超市、中餐馆'},{k:'feeMax',label:'月费上限（数字，加元/月）'},{k:'income',label:'家庭税前年收入（万）'},{k:'down',label:'首付（万）'},{k:'debts',label:'每月固定负债（加元/月）'}];
   function mxFieldSpec(){var rows=FIELDS.map(function(f){return {k:f.k,label:f.label,group:f.group,values:f.edit?f.edit.map(function(e){return e.label;}):undefined};});return rows.concat(MX_EXTRA);}
   function mxCurrent(){var o={},i;for(i=0;i<FIELDS.length;i++)if(profile[FIELDS[i].k])o[FIELDS[i].k]=profile[FIELDS[i].k];if(profile.mustHave)o.mustHave=profile.mustHave;if(profile.feeMax)o.feeMax=profile.feeMax;if(afford.income)o.income=afford.income;if(afford.down)o.down=afford.down;if(afford.debts)o.debts=afford.debts;o.avoid=avoidList(profile).map(function(a){return a.dim+'：'+a.value;});return o;}
-  function mxSystem(){return ['你是 Johome 找房 Agent 的档案抽取模块（'+V4.region+'）。输入是用户在找房对话里说的一句话和当前档案，输出这句话对档案造成的变更。只做抽取，不回答问题。',
+  function mxSystem(){return ['你是 Johome 找房 Agent 的档案抽取模块（'+V4.region+'）。输入是用户在找房对话里说的一句话和当前档案，以 JSON 输出这句话对档案造成的变更（set / clear / avoid / note）。只做抽取，不回答问题。',
     '规则：',
     '1. 只抽这句话里明确表达的内容；猜测、推断、闲聊、纯提问（均价多少 / 值不值 / 会不会涨）一律不抽，返回空变更。',
     '2. 修正句（「不是 A 是 B」「改成 X」「我说的是 X」）：对同一字段给出替换后的完整值，不追加。',
@@ -1396,11 +1397,11 @@ return null;}
     '8. 值的口径：预算写区间，如 ≤130万、120–160万、>250万、100–120万（「100 出头」）；房型用 Townhouse / Condo / 独立屋 / 楼花；卧室数写「3室」「4室+」；可接受通勤写「30分钟 / 45分钟 / 60分钟」；孩子学段用 学龄前 / 小学 / 中学；有 values 列表的字段只能取列表里的值。',
     '9. 城市名用英文规范名（本拿比→Burnaby，列治文→Richmond，温西→Vancouver West，北温→North Vancouver，西温→West Vancouver，高贵林→Coquitlam，素里→Surrey，万锦→Markham，北约克→North York，士嘉堡→Scarborough，密西沙加→Mississauga）。',
     '10. note 用一句中文说明你抽到了什么或为什么没抽（给产品经理看）。',
-    '字段表（k = 字段键，values = 允许值）：'+JSON.stringify(mxFieldSpec()),
+    'set 里每项是 {k, v}：k 取字段表里的字段键，v 是该字段的完整新值。字段表（k = 字段键，values = 允许值）：'+JSON.stringify(mxFieldSpec()),
     '负向维度：'+JSON.stringify(MX_DIMS)].join('\n');}
-  var MX_TOOL={name:'write_changes',description:'输出这句话对档案的变更集',input_schema:{type:'object',properties:{set:{type:'object',description:'要写入的字段，键为字段 k，值为完整新值（字符串）',additionalProperties:{type:'string'}},clear:{type:'array',items:{type:'string'},description:'要清空的字段 k'},avoid:{type:'array',items:{type:'object',properties:{dim:{type:'string'},value:{type:'string'},hard:{type:'boolean'}},required:['dim','value','hard']}},note:{type:'string'}},required:['set','clear','avoid','note']}};
-  function mxCall(t){var body={model:MX.model,max_tokens:1024,system:mxSystem(),tools:[MX_TOOL],tool_choice:{type:'tool',name:'write_changes'},messages:[{role:'user',content:'当前档案：'+JSON.stringify(mxCurrent())+'\n用户这句话：「'+t+'」'}]};
-    return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){var c=(j.content||[]).filter(function(x){return x.type==='tool_use';})[0];if(!c)throw new Error('模型没有返回变更集');return c.input;});}
+  var MX_SCHEMA={type:'object',properties:{set:{type:'array',description:'要写入的字段：k 为字段键，v 为完整新值',items:{type:'object',properties:{k:{type:'string'},v:{type:'string'}},required:['k','v'],additionalProperties:false}},clear:{type:'array',description:'要清空的字段 k',items:{type:'string'}},avoid:{type:'array',items:{type:'object',properties:{dim:{type:'string'},value:{type:'string'},hard:{type:'boolean'}},required:['dim','value','hard'],additionalProperties:false}},note:{type:'string'}},required:['set','clear','avoid','note'],additionalProperties:false};
+  function mxCall(t){var body={model:MX.model,max_tokens:1024,system:mxSystem(),output_config:{effort:'low',format:{type:'json_schema',schema:MX_SCHEMA}},messages:[{role:'user',content:'当前档案：'+JSON.stringify(mxCurrent())+'\n用户这句话：「'+t+'」'}]};
+    return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){if(j.stop_reason==='refusal')throw new Error('模型拒绝了这句（'+((j.stop_details&&j.stop_details.category)||'refusal')+'）');var txt=(j.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');if(!txt)throw new Error('模型没有返回变更集');var o;try{o=JSON.parse(txt);}catch(e){throw new Error('变更集不是合法 JSON');}var set={},i;for(i=0;i<(o.set||[]).length;i++)if(o.set[i]&&o.set[i].k)set[o.set[i].k]=o.set[i].v;o.set=set;return o;});}
   var MX_AFF={income:1,down:1,debts:1};
   function mxApply(res,t){var ch=res||{},set=ch.set||{},clear=ch.clear||[],avoid=ch.avoid||[],keys=[],k,i;
     for(k in set){var v=(''+set[k]).trim();if(!v)continue;if(MX_AFF[k]){afford[k]=v;continue;}if(k==='feeMax'){profile.feeMax=parseInt(v,10)||0;continue;}if(k==='mustHave'){profile.mustHave=v;continue;}
