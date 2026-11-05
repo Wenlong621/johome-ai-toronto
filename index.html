@@ -160,6 +160,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1229,7 +1230,7 @@ return null;}
     n=el.querySelectorAll('[data-aff]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){affAction(b);};})(n[i]);}
   function refreshTurn(t){t.asks=null;t.relax=t.relax||null;buildTurn(t);renderTurn(t);}
   function lockAsk(t){if(!t.el)return;var n=t.el.querySelectorAll('.v4askrow button,.v4askrow input,[data-askok],[data-askv="__skip"]'),i;for(i=0;i<n.length;i++){n[i].disabled=true;n[i].style.opacity='0.55';n[i].style.pointerEvents='none';}var ok=t.el.querySelector('[data-askok]');if(ok)ok.style.display='none';t.asks=null;if(pendingAsk&&pendingAsk.turn===t)pendingAsk=null;}
-  function continueTurn(from){var tn=newTurn();tn.kind=from.kind;tn.text=from.text;tn.skipped=from.skipped;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
+  function continueTurn(from){var tn=newTurn();tn.kind=from.kind;tn.text=from.text;tn.skipped=from.skipped;tn.newKeys=from.newKeys||[];tn.noNew=!!from.noNew;from.newKeys=null;from.noNew=false;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
   function answerAsk(t,f,v){if(v==='__skip'){(t.asks||[]).forEach(function(a){skipCount[a.field]=(skipCount[a.field]||0)+1;});t.skipped=true;lockAsk(t);addUser('跳过');continueTurn(t);return;}profile[f]=v;markSrc([f],'追问点选');pref();lockAsk(t);addUser(v);continueTurn(t);}
   /* 确定：把选项 / 自由输入装配成一句完整的话，走正常的输入通道（抽取 → 回显 → 原地刷新） */
   var ASK_PHRASE={budget:function(v){return '预算 '+v;},htype:function(v){return '房型 '+v;},beds:function(v){return /室|房/.test(v)?v:(v+' 室');},kids:function(v){return '孩子读'+v;},dest:function(v){return /不固定/.test(v)?'工作地点不固定':('在 '+v+' 上班');},mustHave:function(v){return '商圈要有'+v;}};
@@ -1322,9 +1323,10 @@ return null;}
 
   /* ---------- 输入分发 ---------- */
   function showUndo(before,chips){var r=document.createElement('div');r.className='row';r.innerHTML='<div class="av" style="background:var(--color-background-secondary);color:#0F6E56"><i class="ti ti-database"></i></div><div class="v4undo">已记入档案：'+chips.map(function(c){return esc(c.t);}).join('、')+'<button class="v3mini ghost" data-undo="1">撤销</button></div>';list.appendChild(r);r.querySelector('[data-undo]').onclick=function(){restore(profile,before);chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();r.querySelector('.v4undo').innerHTML='已撤销，档案回到上一版本（v'+(profile._v)+'）';if(lastTurn&&lastTurn.kind)refreshTurn(lastTurn);};scroll();}
-  function v4Send(t){addUser(t);var before=snap(profile);lastNeg=[];extract(t);var chips=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(chips.length)showUndo(before,chips);
-    if(askConfirmTurn){var tc=askConfirmTurn;askConfirmTurn=null;pendingAsk=null;if(!chips.length)addAI('这句我没抽到可用的条件，按原条件继续。');continueTurn(tc);return;}
-    if(pendingAsk&&pendingAsk.turn.asks){var hit=pendingAsk.turn.asks.some(function(a){return profile[a.field]&&profile[a.field]!==before[a.field];});if(hit){var tt=pendingAsk.turn;lockAsk(tt);continueTurn(tt);return;}}
+  function v4Send(t){addUser(t);var before=snap(profile);lastNeg=[];if(typeof mxOn==='function'&&mxOn()){mxRun(t,before);return;}extract(t);v4After(t,before);}
+  function v4After(t,before){var chips=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(chips.length)showUndo(before,chips);
+    var nk=chips.filter(function(c){return c.k;}).map(function(c){return c.k;});if(askConfirmTurn){var tc=askConfirmTurn;askConfirmTurn=null;pendingAsk=null;if(!chips.length)addAI('这句我没抽到可用的条件，按原条件继续。');tc.newKeys=nk;tc.noNew=false;continueTurn(tc);return;}
+    if(pendingAsk&&pendingAsk.turn.asks){var hit=pendingAsk.turn.asks.some(function(a){return profile[a.field]&&profile[a.field]!==before[a.field];});if(hit){var tt=pendingAsk.turn;lockAsk(tt);tt.newKeys=nk;tt.noNew=false;continueTurn(tt);return;}}
     var kind=detectIntent(t,chips);
     if(kind==='need'){typing(function(){addAI('先告诉我一个方向就行：想住哪、预算多少、或在哪上班？下面任选一句试试。');quickAct(V4.examples.map(function(x){return {label:x,fn:function(){inp.value=x;doSend();}};}),'live');});return;}
     if(kind==='afford'&&!affordHaveInput()){typing(function(){addAI('算可负担性需要几个数，填一下（可只算这次）：');openAffordForm(function(){affordReply('');});});return;}
@@ -1371,6 +1373,52 @@ return null;}
   profile._v=1;renderSummary();opening();
   /* 调试入口 */
   window.__v4={profile:function(){return profile;},daily:function(){return daily;},afford:function(){return afford;},calc:affordCalc,pool:buildPool,turns:function(){return turns;},relax:function(){return relaxOptions(profile,{},null);},send:v4Send,x:function(){return xProfile;},liked:function(){return liked;}};
+
+  /* ---------- 模型抽取：有 API key 时由 Claude 按档案字段表抽取；没有 key 回退到规则抽取 ---------- */
+  var MX={key:'',model:'claude-sonnet-5-5',last:null,ms:0,err:'',n:0};
+  try{MX.key=localStorage.getItem('jh_key')||'';MX.model=localStorage.getItem('jh_model')||MX.model;}catch(e){}
+  function mxOn(){return !!MX.key;}
+  function mxSave(key,model){MX.key=(key||'').trim();MX.model=model||MX.model;try{if(MX.key)localStorage.setItem('jh_key',MX.key);else localStorage.removeItem('jh_key');localStorage.setItem('jh_model',MX.model);}catch(e){}}
+  var MX_DIMS=['电梯','临街·噪音源','楼层布局','周边厌恶设施','产权形态','房型排除','朝向','所在楼层','宠物限制','出租限制','车位','洪泛区','年龄限制楼','地下室','物业费上限','房龄','排除区域','其他'];
+  var MX_EXTRA=[{k:'mustHave',label:'商圈必备店铺',hint:'多个用「、」分隔，如 亚洲超市、中餐馆'},{k:'feeMax',label:'月费上限（数字，加元/月）'},{k:'income',label:'家庭税前年收入（万）'},{k:'down',label:'首付（万）'},{k:'debts',label:'每月固定负债（加元/月）'}];
+  function mxFieldSpec(){var rows=FIELDS.map(function(f){return {k:f.k,label:f.label,group:f.group,values:f.edit?f.edit.map(function(e){return e.label;}):undefined};});return rows.concat(MX_EXTRA);}
+  function mxCurrent(){var o={},i;for(i=0;i<FIELDS.length;i++)if(profile[FIELDS[i].k])o[FIELDS[i].k]=profile[FIELDS[i].k];if(profile.mustHave)o.mustHave=profile.mustHave;if(profile.feeMax)o.feeMax=profile.feeMax;if(afford.income)o.income=afford.income;if(afford.down)o.down=afford.down;if(afford.debts)o.debts=afford.debts;o.avoid=avoidList(profile).map(function(a){return a.dim+'：'+a.value;});return o;}
+  function mxSystem(){return ['你是 Johome 找房 Agent 的档案抽取模块（'+V4.region+'）。输入是用户在找房对话里说的一句话和当前档案，输出这句话对档案造成的变更。只做抽取，不回答问题。',
+    '规则：',
+    '1. 只抽这句话里明确表达的内容；猜测、推断、闲聊、纯提问（均价多少 / 值不值 / 会不会涨）一律不抽，返回空变更。',
+    '2. 修正句（「不是 A 是 B」「改成 X」「我说的是 X」）：对同一字段给出替换后的完整值，不追加。',
+    '3. 追加句（「也可以」「还有」「或者」）：多值字段（目标城市 / 目标生活圈 / 目标社区 / 目标商圈 / 必备配置 / 商圈必备店铺）把当前值和新值用「、」拼起来给出完整值。',
+    '4. 删除句（「不要 X 了」「X 去掉」）：从多值字段里去掉该项后给出完整值；删空则放进 clear。「预算先不限」这类清空也放 clear。',
+    '5. 否定与排除（「不要临街」「别推朝北」「不考虑 Surrey」「受不了没电梯」）：不改字段，放进 avoid，dim 必须取给定维度之一（区域用「排除区域」，没有合适维度用「其他」），hard 表示是否硬性排除。',
+    '6. 通勤目的地（在哪上班 / 去哪通勤）只写 dest，不写入目标城市 / 生活圈 / 社区。',
+    '7. 地名同时是学校名时（如 Richmond、Burnaby），只有句子有上学 / 学校 / 学区语境才写 school；「在 Richmond 买公寓」只写目标城市。',
+    '8. 值的口径：预算写区间，如 ≤130万、120–160万、>250万、100–120万（「100 出头」）；房型用 Townhouse / Condo / 独立屋 / 楼花；卧室数写「3室」「4室+」；可接受通勤写「30分钟 / 45分钟 / 60分钟」；孩子学段用 学龄前 / 小学 / 中学；有 values 列表的字段只能取列表里的值。',
+    '9. 城市名用英文规范名（本拿比→Burnaby，列治文→Richmond，温西→Vancouver West，北温→North Vancouver，西温→West Vancouver，高贵林→Coquitlam，素里→Surrey，万锦→Markham，北约克→North York，士嘉堡→Scarborough，密西沙加→Mississauga）。',
+    '10. note 用一句中文说明你抽到了什么或为什么没抽（给产品经理看）。',
+    '字段表（k = 字段键，values = 允许值）：'+JSON.stringify(mxFieldSpec()),
+    '负向维度：'+JSON.stringify(MX_DIMS)].join('\n');}
+  var MX_TOOL={name:'write_changes',description:'输出这句话对档案的变更集',input_schema:{type:'object',properties:{set:{type:'object',description:'要写入的字段，键为字段 k，值为完整新值（字符串）',additionalProperties:{type:'string'}},clear:{type:'array',items:{type:'string'},description:'要清空的字段 k'},avoid:{type:'array',items:{type:'object',properties:{dim:{type:'string'},value:{type:'string'},hard:{type:'boolean'}},required:['dim','value','hard']}},note:{type:'string'}},required:['set','clear','avoid','note']}};
+  function mxCall(t){var body={model:MX.model,max_tokens:1024,system:mxSystem(),tools:[MX_TOOL],tool_choice:{type:'tool',name:'write_changes'},messages:[{role:'user',content:'当前档案：'+JSON.stringify(mxCurrent())+'\n用户这句话：「'+t+'」'}]};
+    return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){var c=(j.content||[]).filter(function(x){return x.type==='tool_use';})[0];if(!c)throw new Error('模型没有返回变更集');return c.input;});}
+  var MX_AFF={income:1,down:1,debts:1};
+  function mxApply(res,t){var ch=res||{},set=ch.set||{},clear=ch.clear||[],avoid=ch.avoid||[],keys=[],k,i;
+    for(k in set){var v=(''+set[k]).trim();if(!v)continue;if(MX_AFF[k]){afford[k]=v;continue;}if(k==='feeMax'){profile.feeMax=parseInt(v,10)||0;continue;}if(k==='mustHave'){profile.mustHave=v;continue;}
+      if(!FIELDS.some(function(f){return f.k===k;}))continue;if(k==='beds'&&/^\d+$/.test(v))v+='室';profile[k]=v;keys.push(k);}
+    for(i=0;i<clear.length;i++){k=clear[i];if(MX_AFF[k]){afford[k]='';continue;}if(k==='feeMax'){profile.feeMax=0;continue;}if(k==='mustHave'){profile.mustHave='';continue;}if(FIELDS.some(function(f){return f.k===k;})){profile[k]='';keys.push(k);}}
+    for(i=0;i<avoid.length;i++){var a=avoid[i];if(!a||!a.value)continue;var dim=MX_DIMS.indexOf(a.dim)>=0?a.dim:'其他';if(addAvoid(profile,dim,a.value,!!a.hard,t))lastNeg.push({dim:dim,value:a.value,hard:!!a.hard});}
+    markSrc(keys,'模型抽取');pref();}
+  function mxPending(){var r=document.createElement('div');r.className='row';r.innerHTML='<div class="av"><i class="ti ti-sparkles"></i></div><div class="bub"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="muted" style="font-size:10.5px;margin-left:6px">模型抽取中…</span></div>';list.appendChild(r);scroll();return r;}
+  function mxRun(t,before){var row=mxPending(),t0=Date.now();MX.err='';
+    mxCall(t).then(function(res){row.remove();MX.last=res;MX.ms=Date.now()-t0;MX.n++;mxApply(res,t);v4After(t,before);})
+      .catch(function(e){row.remove();MX.err=(e&&e.message)||String(e);addAI('<span class="muted" style="font-size:11px">模型抽取失败（'+esc(MX.err)+'），这句改用规则抽取。</span>');extract(t);v4After(t,before);});}
+  /* 档案页：模型抽取设置 */
+  function mxSection(){var st=mxOn()?('已启用 · '+esc(MX.model)+(MX.n?('，本次会话抽取 '+MX.n+' 句，上一句 '+MX.ms+' ms'):'')+(MX.err?('<br><span style="color:#B23B2E">上次错误：'+esc(MX.err)+'</span>'):'')+(MX.last&&MX.last.note?('<br>上一句说明：'+esc(MX.last.note)):'')):'未启用，当前用规则抽取（演示用，关键词匹配，会有误判）';
+    return '<div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;margin:6px 2px 1px">模型抽取</div><div class="cc"><div style="font-size:11.5px;margin-bottom:8px;color:'+(mxOn()?'#0F6E56':'#8A5A0B')+'">'+st+'</div><input class="inp" type="password" data-mxkey="1" placeholder="Anthropic API key（只存在本机浏览器）" value="'+esc(MX.key)+'" style="width:100%;box-sizing:border-box;margin-bottom:6px"/><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1;font-size:12.5px">模型</div>'+['claude-sonnet-5-5','claude-haiku-5-5'].map(function(m){return '<button class="q'+(MX.model===m?' on':'')+'" data-mxmodel="'+m+'">'+m.replace('claude-','')+'</button>';}).join('')+'</div><div style="display:flex;gap:8px"><button class="q" data-mx="save" style="background:#0F6E56;color:#fff"><i class="ti ti-check"></i>保存</button><button class="q ghost" data-mx="clear">清除 key</button></div><div class="muted" style="font-size:10.5px;margin-top:8px">启用后每句输入先交给模型按档案字段表抽取（含否定、修正、追加、删除），再走后面的判意图、追问、出卡；意图判断与排序仍是原型规则。key 只存浏览器 localStorage，会消耗你的额度。</div></div>';}
+  var _profilePageMx=profilePage;profilePage=function(){var h=_profilePageMx(),mark='<div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;margin:6px 2px 1px">每日推荐</div>';return h.indexOf(mark)>=0?h.replace(mark,mxSection()+mark):h+mxSection();};
+  var _wirePageMx=wirePage;wirePage=function(){_wirePageMx();var n,i;
+    n=detail.querySelectorAll('[data-mxmodel]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){var inp=detail.querySelector('[data-mxkey]');mxSave(inp?inp.value:MX.key,el.getAttribute('data-mxmodel'));replacePage(profilePage());};})(n[i]);
+    n=detail.querySelectorAll('[data-mx]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){var a=el.getAttribute('data-mx'),inp=detail.querySelector('[data-mxkey]');if(a==='save')mxSave(inp?inp.value:'',MX.model);else if(a==='clear')mxSave('',MX.model);replacePage(profilePage());};})(n[i]);};
+  window.__mx={state:MX,call:mxCall,apply:mxApply,spec:mxFieldSpec,system:mxSystem,save:mxSave};
 
 })();
 </script>
