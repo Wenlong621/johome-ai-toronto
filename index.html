@@ -165,6 +165,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1419,11 +1420,12 @@ return null;}
   /* 档案页：模型抽取设置 */
   function mxKeyInfo(){var k=MX.key,ok=/^sk-ant-/.test(k)&&k.length>=80;return '<br><span style="color:'+(ok?'#0F6E56':'#B23B2E')+'">key：'+esc(k.slice(0,14))+'…'+esc(k.slice(-4))+'（'+k.length+' 字符'+(ok?'，格式正常':'，格式不像 Anthropic API key：应以 sk-ant- 开头、约 100 字符，请到 console.anthropic.com → API Keys 重新复制')+'）</span>';}
   function mxSection(){var st=mxOn()?('已启用 · '+esc(MX.model)+mxKeyInfo()+(MX.n?('，本次会话抽取 '+MX.n+' 句，上一句 '+MX.ms+' ms'):'')+(MX.err?('<br><span style="color:#B23B2E">上次错误：'+esc(MX.err)+'</span>'):'')+(MX.last&&MX.last.note?('<br>上一句说明：'+esc(MX.last.note)):'')):'未启用，当前用规则抽取（演示用，关键词匹配，会有误判）';
-    return '<div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;margin:6px 2px 1px">模型抽取</div><div class="cc"><div style="font-size:11.5px;margin-bottom:8px;color:'+(mxOn()?'#0F6E56':'#8A5A0B')+'">'+st+'</div><input class="inp" type="password" data-mxkey="1" placeholder="Anthropic API key（只存在本机浏览器）" value="'+esc(MX.key)+'" style="width:100%;box-sizing:border-box;margin-bottom:6px"/><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1;font-size:12.5px">模型</div>'+['claude-sonnet-5-5','claude-haiku-5-5'].map(function(m){return '<button class="q'+(MX.model===m?' on':'')+'" data-mxmodel="'+m+'">'+m.replace('claude-','')+'</button>';}).join('')+'</div><div style="display:flex;gap:8px"><button class="q" data-mx="save" style="background:#0F6E56;color:#fff"><i class="ti ti-check"></i>保存</button><button class="q ghost" data-mx="clear">清除 key</button></div><div class="muted" style="font-size:10.5px;margin-top:8px">启用后每句输入先交给模型按档案字段表抽取（含否定、修正、追加、删除），再走后面的判意图、追问、出卡；意图判断与排序仍是原型规则。key 只存浏览器 localStorage，会消耗你的额度。</div></div>';}
-  var _profilePageMx=profilePage;profilePage=function(){var h=_profilePageMx(),mark='<div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;margin:6px 2px 1px">每日推荐</div>';return h.indexOf(mark)>=0?h.replace(mark,mxSection()+mark):h+mxSection();};
+    return '<div class="cc"><div style="font-size:11.5px;margin-bottom:8px;color:'+(mxOn()?'#0F6E56':'#8A5A0B')+'">'+st+'</div><input class="inp" type="password" data-mxkey="1" placeholder="Anthropic API key（只存在本机浏览器）" value="'+esc(MX.key)+'" style="width:100%;box-sizing:border-box;margin-bottom:6px"/><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="flex:1;font-size:12.5px">模型</div>'+['claude-sonnet-5-5','claude-haiku-5-5'].map(function(m){return '<button class="q'+(MX.model===m?' on':'')+'" data-mxmodel="'+m+'">'+m.replace('claude-','')+'</button>';}).join('')+'</div><div style="display:flex;gap:8px"><button class="q" data-mx="save" style="background:#0F6E56;color:#fff"><i class="ti ti-check"></i>保存</button><button class="q ghost" data-mx="clear">清除 key</button></div><div class="muted" style="font-size:10.5px;margin-top:8px">启用后每句输入先交给模型按档案字段表抽取（含否定、修正、追加、删除），再走后面的判意图、追问、出卡；意图判断与排序仍是原型规则。key 只存浏览器 localStorage，会消耗你的额度。</div></div>';}
+  function mxPage(){return dhd2('模型抽取')+'<div class="dscroll">'+mxSection()+'</div>';}
+  (function(){var d=chatView.querySelector('.hd .ti-dots');if(!d)return;d.style.cursor='pointer';d.classList.remove('muted');d.style.color='#0F6E56';d.title='模型抽取设置';d.onclick=function(){openPage(mxPage());};})();
   var _wirePageMx=wirePage;wirePage=function(){_wirePageMx();var n,i;
-    n=detail.querySelectorAll('[data-mxmodel]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){var inp=detail.querySelector('[data-mxkey]');mxSave(inp?inp.value:MX.key,el.getAttribute('data-mxmodel'));replacePage(profilePage());};})(n[i]);
-    n=detail.querySelectorAll('[data-mx]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){var a=el.getAttribute('data-mx'),inp=detail.querySelector('[data-mxkey]');if(a==='save')mxSave(inp?inp.value:'',MX.model);else if(a==='clear')mxSave('',MX.model);replacePage(profilePage());};})(n[i]);};
+    n=detail.querySelectorAll('[data-mxmodel]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){var inp=detail.querySelector('[data-mxkey]');mxSave(inp?inp.value:MX.key,el.getAttribute('data-mxmodel'));replacePage(mxPage());};})(n[i]);
+    n=detail.querySelectorAll('[data-mx]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){var a=el.getAttribute('data-mx'),inp=detail.querySelector('[data-mxkey]');if(a==='save')mxSave(inp?inp.value:'',MX.model);else if(a==='clear')mxSave('',MX.model);replacePage(mxPage());};})(n[i]);};
   window.__mx={state:MX,call:mxCall,apply:mxApply,spec:mxFieldSpec,system:mxSystem,save:mxSave};
 
 })();
