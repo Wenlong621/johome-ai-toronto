@@ -183,6 +183,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1786,9 +1787,10 @@ return null;}
     if(/公交|天车|地铁/.test(p.mode||'')||p.dest||p.nearTransit){var rail=useZone?(ZONES[name]&&ZONES[name].rail):hasRail(name);if(rail)parts.push(V4.rail+'直达');}
     if(/自然环境/.test(p.priority||'')&&/海|湖|公园|山|自然|步道|森林/.test(tags))parts.push('自然环境好');
     if(/高性价比/.test(p.priority||'')&&med&&med<=(IS_TO?92:120))parts.push('价格低于'+V4.region+'中位');
-    if(p.apprec&&p.apprec!=='兼顾'){var ap=apprecTier(name,c);if(ap.tier!=='低')parts.push('增值档'+ap.tier);}
-    if(!parts.length){var tg=useZone?((ZONES[name]&&ZONES[name].tags)||[]).slice(0,2).join('、'):tags.replace(/\s*·\s*/g,'、');if(tg)parts.push(tg);}
-    return name+'：'+parts.slice(0,2).join('、');}
+    if((p.apprec&&p.apprec!=='兼顾')||/保值增值/.test(p.priority||'')){var ap=apprecTier(name,c);parts.push((ap.ev[0]||'').replace('同房型','')+(ap.tier!=='低'?('（增值档'+ap.tier+'）'):''));}
+    if(br&&med&&med>br[1])parts.push('中位 $'+med+'万，略超预算');
+    var tg=useZone?((ZONES[name]&&ZONES[name].tags)||[]).slice(0,3):tags.split(/\s*·\s*/).filter(Boolean);tg.forEach(function(x){if(parts.length<2&&x&&parts.join('').indexOf(x)<0)parts.push(x);});
+    return name+'：'+parts.slice(0,3).join('、');}
   function pickLead(t){var useZone=t.pick.kind==='zone',p=profile,by=[];if(p.priority)by.push('你看重的「'+p.priority+'」');if(/孩|三代/.test(p.family||'')||p.kids)by.push('带孩子');if(p.vibe||p.tone)by.push('「'+(p.vibe||p.tone)+'」');if(p.budget)by.push('预算 '+p.budget);if(p.dest)by.push('通勤 '+p.dest);
     return '按'+(by.length?by.join('、'):'综合宜居度')+'挑了这'+t.pick.names.length+'个'+(useZone?'生活圈':'城市')+'：'+t.pick.names.map(function(nm){return pickWhy(nm,useZone);}).join('；')+'。点开卡片看详情，选定一个继续看社区。';}
   function fbExtra(t){var noun=t.kind==='listing'?'房源':(t.pick?t.pick.noun:'结果');return {id:'fb'+t.id,text:'这组'+noun+'怎么样？',chips:[{label:'满意',icon:'ti-thumb-up',fn:function(){fbReasons.push({turn:t.id,kind:t.kind,ok:true});var more=(t.kind==='listing'&&dailyEligible()&&!daily.on)?' 要不要按这个条件每天推给你？':'';addAI('👍 记下了，'+(t.kind==='listing'?'点卡片看详情，或说「帮我约看第 N 套」。':'点「确定」选定进入下一层，或点卡片看详情。')+more);if(more)quickAct([{label:'开每日推荐',icon:'ti-bell',fn:function(){disablePickables();v4Send('就按这个每天推给我');}},{label:'先不用',fn:function(){disablePickables();}}],'pickable');}},{label:'不满意',icon:'ti-thumb-down',fn:function(){fbReasons.push({turn:t.id,kind:t.kind,ok:false});if(t.kind==='listing'){dislikeReason(null);}else{addAI('不合适的话：');quickAct([{label:'换一批',icon:'ti-refresh',fn:function(){disablePickables();if(t.pick&&!t.pickDone)morePick(t);else v4Send('换一批');}},{label:'说新条件',icon:'ti-pencil',fn:function(){disablePickables();addAI('直接说，比如「预算改成 150」「不要临街」「换个通勤目的地」。');}}],'pickable');}}}]};}
