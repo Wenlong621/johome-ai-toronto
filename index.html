@@ -170,6 +170,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1297,7 +1298,7 @@ return null;}
       return;}
     if(k==='nb'){var rows=nbCandidates(p);if(t.excludeNames&&p.dest){var q=clone(p);q.time=/30/.test(p.time||'')?'45分钟':'60分钟';t.widenTime=q.time;var seen={};rows.forEach(function(r){seen[r[0]]=1;});isoNbs(q).forEach(function(r){if(!seen[r[0]]){seen[r[0]]=1;rows.push(r);}});}var hasBud=!!budgetRange(p.budget),kw=TONEKW[p.tone]||[],bus=/公交|天车|地铁/.test(p.mode||''),kids=/孩|三代/.test(p.family||'');
       if(t.excludeNames)rows=rows.filter(function(n){return t.excludeNames.indexOf(n[0])<0;});
-      rows=rows.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]),th=0,j;for(j=0;j<kw.length;j++)if(((n[3]||'')+nbTags(n[0],city).join(' ')).indexOf(kw[j])>=0)th++;var pr=p.priority?(nbFocusSort([n],p.priority).length?1:0):0;var ap=apprecTier(n[0],city);row._s=(cov===null?40:cov*0.6)+(/自然环境/.test(p.priority||'')&&/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨/.test((n[3]||'')+nbTags(n[0],city).join(' '))?18:0)+(bus&&hasRail(city)?12:0)+(kids&&sch>=8?10:0)+th*8+(p.apprec==='很看重'?ap.score*0.25:(p.apprec==='兼顾'?ap.score*0.05:0));row._cov=cov;row._ap=ap;row._city=city;return row;}).filter(function(r){return p.apprec!=='只要增值潜力高的'||r._ap.tier==='高';}).sort(function(a,b){return b._s-a._s;}).slice(0,4);
+      rows=rows.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]),th=0,j;for(j=0;j<kw.length;j++)if(((n[3]||'')+nbTags(n[0],city).join(' ')).indexOf(kw[j])>=0)th++;var pr=p.priority?(nbFocusSort([n],p.priority).length?1:0):0;var ap=apprecTier(n[0],city);row._s=(cov===null?40:cov*0.6)+(/自然环境/.test(p.priority||'')&&/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨|渔村|小镇/.test((n[3]||'')+nbTags(n[0],city).join(' '))?40:0)+(bus&&hasRail(city)?12:0)+(kids&&sch>=8?10:0)+th*8+(p.apprec==='很看重'?ap.score*0.25:(p.apprec==='兼顾'?ap.score*0.05:0));row._cov=cov;row._ap=ap;row._city=city;return row;}).filter(function(r){return p.apprec!=='只要增值潜力高的'||r._ap.tier==='高';}).sort(function(a,b){return b._s-a._s;}).slice(0,4);
       if(!rows.length&&t.excludeNames){t.lead='这个范围内没有更多社区了。可以放宽通勤时间、换个目的地，或说说别的偏好。';t.pick=null;return;}
       if(!rows.length){t.lead='按「只要增值潜力高的」硬筛后没有社区了，要不要放到「很看重」？';t.extra.push({id:'ap',chips:[{label:'放到「很看重」',fn:function(){profile.apprec='很看重';pref();refreshTurn(t);}}]});return;}
       var scope=p.dest?('到 '+p.dest+' '+(p.mode||'')+' ≤'+(t.widenTime||p.time||'45分钟')+' 的等时圈内'+(t.widenTime?'（已从 '+(p.time||'45分钟')+' 放宽）':'')):p.school?(p.school+' '+V4.catchWord+'范围附近'):p.district?(p.district+' 商圈周边'):(p.tZone||p.tCity||'你提到的区域');
@@ -1329,7 +1330,7 @@ return null;}
     if(!rows.length&&p.tNb)p.tNb.split('、').forEach(function(n){var r=rowFor(n);if(r)rows.push(r);});
     if(!rows.length&&p.tZone)p.tZone.split('、').forEach(function(z){(ZONES[z]?ZONES[z].nbs:[]).forEach(function(q){var r=rowFor(q[0],q[1]);if(r)rows.push(r);});});
     if(!rows.length&&p.tCity)p.tCity.split('、').forEach(function(c){(cityData(c).nbs||[]).forEach(function(n){rows.push(n);});});
-    if(!rows.length){var c;for(c in CITY)(CITY[c].nbs||[]).slice(0,2).forEach(function(n){rows.push(n);});}
+    if(!rows.length){var c,nat=/自然环境/.test(p.priority||''),natRe=/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨|渔村|小镇/;for(c in CITY)(CITY[c].nbs||[]).forEach(function(n,i){if(i<2||(nat&&natRe.test(n[3]||'')))rows.push(n);});}
     var seen={};return rows.filter(function(r){if(seen[r[0]])return false;seen[r[0]]=1;return true;});}
   function rowFor(n,cityHint){var c=cityHint||nbCity(n)||V4.cityDefault,cd=CITY[c],i;if(cd&&cd.nbs)for(i=0;i<cd.nbs.length;i++)if(cd.nbs[i][0]===n)return cd.nbs[i];if(typeof BSET!=='undefined'){var d,t;for(d in BSET)for(t in BSET[d])for(i=0;i<BSET[d][t].length;i++)if(BSET[d][t][i][0]===n)return BSET[d][t][i];}var nd=nbData(n,c);return [n,c+' · 社区',80,(nbTags(n,c).slice(0,2).join(' · ')||'成熟社区'),'$'+nd.med+'万','社区售出中位价',nd.active+' 套','范围内房源'];}
 
@@ -1392,7 +1393,7 @@ return null;}
   function mxOn(){return !!MX.key;}
   function mxSave(key,model){MX.key=(key||'').replace(/\s+/g,'');MX.model=model||MX.model;try{if(MX.key)localStorage.setItem('jh_key',MX.key);else localStorage.removeItem('jh_key');localStorage.setItem('jh_model',MX.model);}catch(e){}}
   var MX_DIMS=['电梯','临街·噪音源','楼层布局','周边厌恶设施','产权形态','房型排除','朝向','所在楼层','宠物限制','出租限制','车位','洪泛区','年龄限制楼','地下室','物业费上限','房龄','排除区域','其他'];
-  var MX_EXTRA=[{k:'mustHave',label:'商圈必备店铺',hint:'多个用「、」分隔，如 亚洲超市、中餐馆'},{k:'feeMax',label:'月费上限（数字，加元/月）'},{k:'income',label:'家庭税前年收入',hint:'写「18万」这种带单位的值'},{k:'down',label:'首付金额',hint:'写「20万」这种带单位的值；只说了比例（两成 / 20%）写到 downPay'},{k:'debts',label:'每月固定负债',hint:'加元/月，如「800」'}];
+  var MX_EXTRA=[{k:'mustHave',label:'商圈必备店铺',hint:'多个用「、」分隔，如 亚洲超市、中餐馆'},{k:'feeMax',label:'月费上限（数字，加元/月）'},{k:'income',label:'家庭税前年收入',hint:'写「18万」这种带单位的值'},{k:'down',label:'首付金额',hint:'写「20万」这种带单位的值；只说了比例（两成 / 20%）写到 downPay'},{k:'debts',label:'每月固定负债',hint:'加元/月，如「800」'},{k:'payMax',label:'月供上限',hint:'加元/月，「月供控制在 4000 以内」→ 4000'}];
   var MX_FREE={budget:[],time:[],age:['10年内','20年内'],parking:['车库','带车库 2车位']};
   function mxFieldSpec(){var rows=FIELDS.map(function(f){var vs=f.edit?f.edit.map(function(e){return e.label;}):[];return MX_FREE[f.k]?{k:f.k,label:f.label,group:f.group,free:true,examples:vs.concat(MX_FREE[f.k])}:{k:f.k,label:f.label,group:f.group,values:vs};});return rows.concat(MX_EXTRA);}
   function mxCurrent(){var o={},i;for(i=0;i<FIELDS.length;i++)if(profile[FIELDS[i].k])o[FIELDS[i].k]=profile[FIELDS[i].k];if(profile.mustHave)o.mustHave=profile.mustHave;if(profile.feeMax)o.feeMax=profile.feeMax;if(afford.income)o.income=afford.income;if(afford.down)o.down=afford.down;if(afford.debts)o.debts=afford.debts;o.avoid=avoidList(profile).map(function(a){return a.dim+'：'+a.value;});return o;}
@@ -1413,9 +1414,9 @@ return null;}
   var MX_SCHEMA={type:'object',properties:{set:{type:'array',description:'要写入的字段：k 为字段键，v 为完整新值',items:{type:'object',properties:{k:{type:'string'},v:{type:'string'}},required:['k','v'],additionalProperties:false}},clear:{type:'array',description:'要清空的字段 k',items:{type:'string'}},avoid:{type:'array',items:{type:'object',properties:{dim:{type:'string'},value:{type:'string'},hard:{type:'boolean'}},required:['dim','value','hard'],additionalProperties:false}},note:{type:'string'}},required:['set','clear','avoid','note'],additionalProperties:false};
   function mxCall(t){var body={model:MX.model,max_tokens:1024,system:mxSystem(),output_config:{effort:'low',format:{type:'json_schema',schema:MX_SCHEMA}},messages:[{role:'user',content:'当前档案：'+JSON.stringify(mxCurrent())+'\n用户这句话：「'+t+'」'}]};
     return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){if(j.stop_reason==='refusal')throw new Error('模型拒绝了这句（'+((j.stop_details&&j.stop_details.category)||'refusal')+'）');var txt=(j.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');if(!txt)throw new Error('模型没有返回变更集');var o;try{o=JSON.parse(txt);}catch(e){throw new Error('变更集不是合法 JSON');}var set={},i;for(i=0;i<(o.set||[]).length;i++)if(o.set[i]&&o.set[i].k)set[o.set[i].k]=o.set[i].v;o.set=set;return o;});}
-  var MX_AFF={income:1,down:1,debts:1};
+  var MX_AFF={income:1,down:1,debts:1,payMax:1};
   function mxApply(res,t){var ch=res||{},set=ch.set||{},clear=ch.clear||[],avoid=ch.avoid||[],keys=[],k,i;
-    for(k in set){var v=(''+set[k]).trim();if(!v)continue;if(MX_AFF[k]){var num=parseFloat(v.replace(/[^\d.]/g,''));if(!(num>0))continue;if(k==='debts'){afford.debts=Math.round(/万|w/i.test(v)?num*10000:num);continue;}if(/k/i.test(v)&&!/万/.test(v))num=num/10;else if(!/万|w/i.test(v)&&num>1000)num=num/10000;afford[k]=Math.round(num*10000);if(k==='down'){profile.downPay=num+'万';}continue;}if(k==='feeMax'){profile.feeMax=parseInt(v,10)||0;continue;}if(k==='mustHave'){profile.mustHave=v;continue;}
+    for(k in set){var v=(''+set[k]).trim();if(!v)continue;if(MX_AFF[k]){var num=parseFloat(v.replace(/[^\d.]/g,''));if(!(num>0))continue;if(k==='debts'){afford.debts=Math.round(/万|w/i.test(v)?num*10000:num);continue;}if(k==='payMax'){afford.payMax=Math.round(num);continue;}if(/k/i.test(v)&&!/万/.test(v))num=num/10;else if(!/万|w/i.test(v)&&num>1000)num=num/10000;afford[k]=Math.round(num*10000);if(k==='down'){profile.downPay=num+'万';}continue;}if(k==='feeMax'){profile.feeMax=parseInt(v,10)||0;continue;}if(k==='mustHave'){profile.mustHave=v;continue;}
       if(!FIELDS.some(function(f){return f.k===k;}))continue;if(k==='beds'&&/^\d+$/.test(v))v+='室';profile[k]=v;keys.push(k);}
     for(i=0;i<clear.length;i++){k=clear[i];if(MX_AFF[k]){afford[k]='';continue;}if(k==='feeMax'){profile.feeMax=0;continue;}if(k==='mustHave'){profile.mustHave='';continue;}if(FIELDS.some(function(f){return f.k===k;})){profile[k]='';keys.push(k);}}
     for(i=0;i<avoid.length;i++){var a=avoid[i];if(!a||!a.value)continue;var dim=MX_DIMS.indexOf(a.dim)>=0?a.dim:'其他';if(addAvoid(profile,dim,a.value,!!a.hard,t))lastNeg.push({dim:dim,value:a.value,hard:!!a.hard});}
@@ -1492,6 +1493,7 @@ return null;}
     var mp=s.match(/月供.{0,8}?(\d{3,5})\s*(以内|以下|内|左右|之内)|月供.{0,4}(控制|不超过|最多)\D{0,6}(\d{3,5})/);if(mp){afford.payMax=parseInt(mp[1]||mp[4],10);s=s.replace(mp[0],'');}
     var mh=s.match(/(手里|手上|积蓄|存款|现金)\s*(有|大概|约)?\s*([\d.]+)\s*万/);if(mh){if(!afford.down){afford.down=Math.round(parseFloat(mh[3])*10000);profile.downPay=mh[3]+'万';}s=s.replace(mh[0],'');}
     m=s.match(/预算\s*(?:改成|改为|是|大概|约|差不多|在|定在)?\s*(\d{2,4})\s*(出头|左右|以内|以下|内|之内)?(?!\s*(万|w|%|年|套|室|房|分|k))/i)||s.match(/(?:大概|差不多|约)\s*(\d{2,4})\s*(出头|左右)(?!\s*万)/);if(m){var bn=parseInt(m[1],10);if(bn>=30&&bn<=2000)profile.budget=m[2]==='出头'?(bn+'–'+(bn+20)+'万'):m[2]==='左右'?((bn-10)+'–'+(bn+10)+'万'):('≤'+bn+'万');}
+    if(!m){var mb2=/(\d{2,4})\s*(以内|以下)(?!\s*(万|w|套|室|房|分|年|k))/i,mm2=mb2.exec(s);if(mm2){var pre2=s.slice(Math.max(0,mm2.index-4),mm2.index),bn2=parseInt(mm2[1],10);if(!/月供|月费|管理费|物业费|首付|收入|负债|分钟/.test(pre2)&&bn2>=30&&bn2<=2000)profile.budget='≤'+bn2+'万';}}
     _extract5(s);
     if(/通勤|上班|上学|车程|分钟/.test(s)&&/坐|乘|搭/.test(s)&&profile.nearTransit&&!before.nearTransit)profile.nearTransit='';
     var ya=s.match(/(\d{1,2})\s*年\s*(内|以内|之内)/);if(ya&&!/持有|住|打算/.test(s.slice(Math.max(0,ya.index-3),ya.index)))profile.age=(parseInt(ya[1],10)<=10?'10 年内':'20年内');else if(/新一点|新一些|较新|新点的|要新/.test(s)&&!/全新|新房|楼花/.test(s))profile.age='10 年内';
@@ -1554,7 +1556,7 @@ return null;}
   var _matchQA5=matchQA;matchQA=function(t){if(t&&/便宜(点|一点|些|一些)|实惠(点|一点)|再便宜/.test(t))return null;var r=_matchQA5(t);if(!r&&t&&/有没有|有木有/.test(t)&&!/[?？]$/.test(t))r=_matchQA5(t+'？');return r;};
   var NEW_KINDS={ack:1,who:1,agentq:1,advice:1,share:1,offtopic:1,browse:1,closing:1,more:1,stress:1,daily:1,timing:1,knowledge:1,compare:1,market:1,ref:1,narrative:1};
   var NOEXTRACT={ack:1,who:1,agentq:1,advice:1,share:1,offtopic:1,browse:1,closing:1,more:1,daily:1,timing:1,knowledge:1,compare:1,ref:1};
-  var _detectIntent5=detectIntent;detectIntent=function(t,chips){if(isNarrative(t))return 'narrative';if(/便宜(点|一点|些|一些)|实惠(点|一点)|再便宜/.test(t))return 'listing';return _detectIntent5(t,chips);};
+  var _detectIntent5=detectIntent;detectIntent=function(t,chips){if(isNarrative(t))return 'narrative';if(/便宜(点|一点|些|一些)|实惠(点|一点)|再便宜/.test(t))return 'listing';if(/车位|车库|养狗|养猫|宠物|年内|新一点|新一些|月费|管理费|物业费|院子|后院|电梯|地下室|朝南|海景|山景/.test(t)&&!/社区|商圈|学校|学区|城市|生活圈|通勤|上班/.test(t))return hasRegion(profile)?'listing':'listing';return _detectIntent5(t,chips);};
   var _softScore5=softScore;softScore=function(p,l){var r=_softScore5(p,l);if(/高性价比/.test(p.priority||'')){var d=nbData(l.nb,l.city),med=d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9);if(l.price<med){var pct=Math.round((med-l.price)/med*100);r.s+=1.5;r.hits.unshift('低于同类中位 '+pct+'%');}}return r;};
   var _condChips5=condChips;condChips=function(kind,pending,t){if(NOEXTRACT[kind]||kind==='market'||kind==='stress')return [];return _condChips5(kind,pending,t);};
 
@@ -1725,7 +1727,7 @@ return null;}
 
   /* ---------- buildTurn 分发 ---------- */
   var curExclude=null;var _runBatch5=runBatch;runBatch=function(o){o=o||{};if(curExclude){var ex={},k;for(k in (o.exclude||{}))ex[k]=1;for(k in curExclude)ex[k]=1;o.exclude=ex;}return _runBatch5(o);};
-  var _buildTurn5=buildTurn;buildTurn=function(t){var k=t.kind;if(!NEW_KINDS[k]&&k!=='market'&&k!=='stress'){curExclude=t.excludeIds||null;if(k==='listing'&&!hasRegion(profile)&&/便宜|性价比|实惠/.test(t.text||''))t.allRegion=true;try{_buildTurn5(t);}finally{curExclude=null;}
+  var _buildTurn5=buildTurn;buildTurn=function(t){var k=t.kind;if(!NEW_KINDS[k]&&k!=='market'&&k!=='stress'){curExclude=t.excludeIds||null;if(k==='listing'&&!hasRegion(profile)&&/便宜|性价比|实惠|车位|车库|养狗|养猫|宠物|年内|新一点|新一些|月费|管理费|物业费|院子|后院|电梯|地下室|朝南|海景|山景/.test(t.text||''))t.allRegion=true;try{_buildTurn5(t);}finally{curExclude=null;}
       if(k==='afford'&&t.text&&/(够不够|够吗).*(买|房)|买个.*(房|室)/.test(t.text)){var regs=findRegionsAll(normAlias(t.text)),c=regs.length?cityOf(regs[0].name):(profile.tCity||'').split('、')[0],bd=parseInt(((t.text.match(/(\d|两|三)\s*(房|室)/)||[0,0])[1]),10)||cnNum((t.text.match(/(两|三|四)\s*(房|室)/)||[0,''])[1])||parseInt(((profile.beds||'').match(/\d/)||[0])[0],10);if(c){var med=poolMedian(c,bd||0,profile.htype),res=affordRun().res,ok=med&&res.price>=med*10000;t.lead='你最高可买约 '+fmtMoney(res.price)+'，'+c+' '+(bd?bd+' 房':'')+(profile.htype?typeCN(profile.htype):'')+'在售中位约 $'+med+'万，'+(ok?'够，在范围内':'差一点，可以看便宜的区或放宽')+'：';t.extra.push({id:'af'+t.id,keep:true,chips:[{label:'按这个预算找房',icon:'ti-home',fn:function(){profile.budget='≤'+Math.round(res.price/10000)+'万';if(!profile.tCity)profile.tCity=c;pref();v4Send('看 '+c+' 的房源');}},{label:'看便宜的区',fn:function(){v4Send('哪里最便宜');}}]});}}
       return;}
     t.html='';t.lead='';t.layers=null;t.relaxOpts=[];t.extra=(t.extra||[]).filter(function(x){return x.keep;});t.asks=null;t.pick=null;
