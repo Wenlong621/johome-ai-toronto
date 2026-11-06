@@ -171,6 +171,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1273,7 +1274,7 @@ return null;}
     if(/生活圈|片区|一带|哪一片/.test(t)&&!/房源|房子/.test(t))return 'zone';
     if(/城市|哪个市|哪个城/.test(t)&&!/房源|房子/.test(t))return 'city';
     if(/社区|小区/.test(t)&&!/房源|房子|套房/.test(t))return 'nb';
-    if(/通勤|上班|上学|分钟内|分钟以内|车程/.test(t)&&!/房源|房子|套房|几套|联排|公寓|独立屋/.test(t))return 'nb';
+    if(/通勤|上班|上学|分钟内|分钟以内|车程/.test(t)&&!/房源|房子|套房|几套/.test(t))return 'nb';
     if(/好卖|好转手|保值|增值|升值|抗跌/.test(t)&&!/房源|房子|套房|几套/.test(t))return hasRegion(p)||hasPref(p)?'nb':'zone';
     if(/商圈|店铺|华人超市|亚洲超市|中餐馆|大型商场|咖啡馆|夜生活/.test(t)&&!/房源|房子/.test(t))return p.district?'listing':'district';
     if(/学校|学区|名校|catchment|上学|高分校|公立|私立|ib|french immersion/i.test(t)&&!/房源|房子/.test(t))return p.school?'listing':'school';
@@ -1298,7 +1299,7 @@ return null;}
       return;}
     if(k==='nb'){var rows=nbCandidates(p);if(t.excludeNames&&p.dest){var q=clone(p);q.time=/30/.test(p.time||'')?'45分钟':'60分钟';t.widenTime=q.time;var seen={};rows.forEach(function(r){seen[r[0]]=1;});isoNbs(q).forEach(function(r){if(!seen[r[0]]){seen[r[0]]=1;rows.push(r);}});}var hasBud=!!budgetRange(p.budget),kw=TONEKW[p.tone]||[],bus=/公交|天车|地铁/.test(p.mode||''),kids=/孩|三代/.test(p.family||'');
       if(t.excludeNames)rows=rows.filter(function(n){return t.excludeNames.indexOf(n[0])<0;});
-      rows=rows.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]),th=0,j;for(j=0;j<kw.length;j++)if(((n[3]||'')+nbTags(n[0],city).join(' ')).indexOf(kw[j])>=0)th++;var pr=p.priority?(nbFocusSort([n],p.priority).length?1:0):0;var ap=apprecTier(n[0],city);row._s=(cov===null?40:cov*0.6)+(/自然环境/.test(p.priority||'')&&/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨|渔村|小镇/.test((n[3]||'')+nbTags(n[0],city).join(' '))?40:0)+(bus&&hasRail(city)?12:0)+(kids&&sch>=8?10:0)+th*8+(p.apprec==='很看重'?ap.score*0.25:(p.apprec==='兼顾'?ap.score*0.05:0));row._cov=cov;row._ap=ap;row._city=city;return row;}).filter(function(r){return p.apprec!=='只要增值潜力高的'||r._ap.tier==='高';}).sort(function(a,b){return b._s-a._s;}).slice(0,4);
+      rows=rows.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]),th=0,j;for(j=0;j<kw.length;j++)if(((n[3]||'')+nbTags(n[0],city).join(' ')).indexOf(kw[j])>=0)th++;var pr=p.priority?(nbFocusSort([n],p.priority).length?1:0):0;var ap=apprecTier(n[0],city);row._s=(cov===null?40:cov*0.6)+(/自然环境/.test(p.priority||'')&&/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨|渔村|小镇/.test((n[3]||'')+nbTags(n[0],city).join(' '))?70:0)+(bus&&hasRail(city)?12:0)+(kids&&sch>=8?10:0)+th*8+(p.apprec==='很看重'?ap.score*0.25:(p.apprec==='兼顾'?ap.score*0.05:0));row._cov=cov;row._ap=ap;row._city=city;return row;}).filter(function(r){return p.apprec!=='只要增值潜力高的'||r._ap.tier==='高';}).sort(function(a,b){return b._s-a._s;}).slice(0,4);
       if(!rows.length&&t.excludeNames){t.lead='这个范围内没有更多社区了。可以放宽通勤时间、换个目的地，或说说别的偏好。';t.pick=null;return;}
       if(!rows.length){t.lead='按「只要增值潜力高的」硬筛后没有社区了，要不要放到「很看重」？';t.extra.push({id:'ap',chips:[{label:'放到「很看重」',fn:function(){profile.apprec='很看重';pref();refreshTurn(t);}}]});return;}
       var scope=p.dest?('到 '+p.dest+' '+(p.mode||'')+' ≤'+(t.widenTime||p.time||'45分钟')+' 的等时圈内'+(t.widenTime?'（已从 '+(p.time||'45分钟')+' 放宽）':'')):p.school?(p.school+' '+V4.catchWord+'范围附近'):p.district?(p.district+' 商圈周边'):(p.tZone||p.tCity||'你提到的区域');
