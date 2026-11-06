@@ -178,6 +178,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1571,7 +1572,7 @@ return null;}
   var _matchQA5=matchQA;matchQA=function(t){if(t&&/便宜(点|一点|些|一些)|实惠(点|一点)|再便宜/.test(t))return null;var r=_matchQA5(t);if(!r&&t&&/有没有|有木有/.test(t)&&!/[?？]$/.test(t))r=_matchQA5(t+'？');return r;};
   var NEW_KINDS={ack:1,who:1,agentq:1,advice:1,share:1,offtopic:1,browse:1,closing:1,more:1,stress:1,daily:1,timing:1,knowledge:1,compare:1,market:1,ref:1,narrative:1};
   var NOEXTRACT={ack:1,who:1,agentq:1,advice:1,share:1,offtopic:1,browse:1,closing:1,more:1,daily:1,timing:1,knowledge:1,compare:1,ref:1};
-  var _detectIntent5=detectIntent;detectIntent=function(t,chips){if(mxIntent&&MX_KINDS[mxIntent]&&mxIntent!=='correction'){var k=mxIntent;mxIntent=null;return k;}if(isNarrative(t))return 'narrative';if(/便宜(点|一点|些|一些)|实惠(点|一点)|再便宜/.test(t))return 'listing';if(/车位|车库|养狗|养猫|宠物|年内|新一点|新一些|月费|管理费|物业费|院子|后院|电梯|地下室|朝南|海景|山景/.test(t)&&!/社区|商圈|学校|学区|城市|生活圈|通勤|上班/.test(t))return hasRegion(profile)?'listing':'listing';return _detectIntent5(t,chips);};
+  var _detectIntent5=detectIntent;detectIntent=function(t,chips){if(mxIntent&&MX_KINDS[mxIntent]&&mxIntent!=='correction'){var k=mxIntent;mxIntent=null;return k;}if(isNarrative(t))return 'narrative';if(/便宜(点|一点|些|一些)|实惠(点|一点)|再便宜/.test(t))return 'listing';if(/房源|房子|找房|看房|几套|出房|推荐.{0,4}房/.test(t)&&!/社区|商圈|学校|学区|城市|生活圈/.test(t)&&(profile.budget||profile.htype||profile.beds))return 'listing';if(/车位|车库|养狗|养猫|宠物|年内|新一点|新一些|月费|管理费|物业费|院子|后院|电梯|地下室|朝南|海景|山景/.test(t)&&!/社区|商圈|学校|学区|城市|生活圈|通勤|上班/.test(t))return hasRegion(profile)?'listing':'listing';return _detectIntent5(t,chips);};
   var _softScore5=softScore;softScore=function(p,l){var r=_softScore5(p,l);if(/高性价比/.test(p.priority||'')){var d=nbData(l.nb,l.city),med=d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9);if(l.price<med){var pct=Math.round((med-l.price)/med*100);r.s+=1.5;r.hits.unshift('低于同类中位 '+pct+'%');}}return r;};
   var INTENT_CN={listing:'找房源',nb:'选社区',zone:'选生活圈',city:'选城市',school:'选学校',district:'选商圈',afford:'算钱',stress:'压力测试',market:'行情数据',qa:'城市问答',compare:'比较',knowledge:'流程规则',timing:'时机判断',narrative:'自我叙述',browse:'随便看看',correction:'纠错修改',ref:'指上一轮卡片',more:'换一批',daily:'每日推荐',ack:'应答',who:'问我是谁',agentq:'问是否中介',advice:'要投资建议',share:'分享',offtopic:'无关请求',closing:'结束'};
   var _condChips5=condChips;condChips=function(kind,pending,t){if(NOEXTRACT[kind]||kind==='market'||kind==='stress')return [];var out=_condChips5(kind,pending,t);if(t&&mxIntentLast&&!t.mxShown){t.mxShown=true;t.mxIntent=mxIntentLast;}if(t&&t.mxIntent)out.unshift({t:'模型判意图：'+(INTENT_CN[t.mxIntent]||t.mxIntent),cls:'soft'});return out;};
@@ -1749,7 +1750,8 @@ return null;}
 
   /* ---------- buildTurn 分发 ---------- */
   var curExclude=null;var _runBatch5=runBatch;runBatch=function(o){o=o||{};if(curExclude){var ex={},k;for(k in (o.exclude||{}))ex[k]=1;for(k in curExclude)ex[k]=1;o.exclude=ex;}return _runBatch5(o);};
-  var _buildTurn5=buildTurn;buildTurn=function(t){var k=t.kind;if(!NEW_KINDS[k]&&k!=='market'&&k!=='stress'){curExclude=t.excludeIds||null;if(k==='listing'&&!hasRegion(profile)&&/便宜|性价比|实惠|车位|车库|养狗|养猫|宠物|年内|新一点|新一些|月费|管理费|物业费|院子|后院|电梯|地下室|朝南|海景|山景/.test(t.text||''))t.allRegion=true;try{_buildTurn5(t);}finally{curExclude=null;}
+  var _buildTurn5=buildTurn;buildTurn=function(t){var k=t.kind;if(!NEW_KINDS[k]&&k!=='market'&&k!=='stress'){curExclude=t.excludeIds||null;if(k==='listing'&&!hasRegion(profile))t.allRegion=true;try{_buildTurn5(t);}finally{curExclude=null;}
+      if(k==='listing'&&t.allRegion&&t.html&&!(t.asks&&t.asks.length)){var cs=Object.keys(CITYCARD).filter(function(x){return /^[A-Za-z]/.test(x);}).slice(0,6);t.extra.push({id:'reg'+t.id,icon:'ti-map-pin',text:'这是全'+V4.region+'的结果。想限定区域的话点一个，或直接说「看 X 的房源」：',chips:cs.map(function(c){return {label:c,fn:function(){v4Send('看 '+c+' 的房源');}};})});}
       if(k==='afford'&&t.text&&/(够不够|够吗).*(买|房)|买个.*(房|室)/.test(t.text)){var regs=findRegionsAll(normAlias(t.text)),c=regs.length?cityOf(regs[0].name):(profile.tCity||'').split('、')[0],bd=parseInt(((t.text.match(/(\d|两|三)\s*(房|室)/)||[0,0])[1]),10)||cnNum((t.text.match(/(两|三|四)\s*(房|室)/)||[0,''])[1])||parseInt(((profile.beds||'').match(/\d/)||[0])[0],10);if(c){var med=poolMedian(c,bd||0,profile.htype),res=affordRun().res,ok=med&&res.price>=med*10000;t.lead='你最高可买约 '+fmtMoney(res.price)+'，'+c+' '+(bd?bd+' 房':'')+(profile.htype?typeCN(profile.htype):'')+'在售中位约 $'+med+'万，'+(ok?'够，在范围内':'差一点，可以看便宜的区或放宽')+'：';t.extra.push({id:'af'+t.id,keep:true,chips:[{label:'按这个预算找房',icon:'ti-home',fn:function(){profile.budget='≤'+Math.round(res.price/10000)+'万';if(!profile.tCity)profile.tCity=c;pref();v4Send('看 '+c+' 的房源');}},{label:'看便宜的区',fn:function(){v4Send('哪里最便宜');}}]});}}
       if(t.html&&t.html.indexOf('v4scroll')>=0&&!(t.asks&&t.asks.length))t.extra.push(fbExtra(t));
       return;}
