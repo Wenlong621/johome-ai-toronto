@@ -179,6 +179,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1319,8 +1320,8 @@ return null;}
       if(t.excludeNames)scored=scored.filter(function(o){return t.excludeNames.indexOf(o.n)<0;});var names=scored.map(function(o){return o.n;});t.pick={kind:useZone?'zone':'city',noun:useZone?'生活圈':'城市',names:names};t.lead=(useZone?'按生活圈维度':'按城市维度')+(pr?('，先按你看重的「'+pr+'」圈候选池'):'')+(tone?('，再按「'+tone+'」调性'):'')+(fam?'、家庭阶段':'')+(p.apprec&&p.apprec!=='兼顾'?('、增值偏好「'+p.apprec+'」'):'')+' 排序，这三个最匹配（点开看详情，说「看 X 的社区」继续下钻）：';
       if(useZone){t.html='<div class="v4scroll">'+names.map(function(z,i){var c=zoneCard(z).replace('data-kind="zone"','data-kind="zone" data-idx="'+(i+1)+'"');if(p.apprec)c=c.replace(/<\/div><\/div>$/,apprecHTML(z,ZONES[z].prim)+'</div></div>');return c;}).join('')+'</div>';t.layers={pins:[],polys:names.map(function(z){var zz=ZONES[z],lat=0,lng=0;zz.nbs.forEach(function(q){var g=nbGeo(q[0],q[1]);lat+=g[0];lng+=g[1];});lat/=zz.nbs.length;lng/=zz.nbs.length;return {pts:blob([lat,lng],2.6,'zone'+z,18),label:z,fillOpacity:0.08};}),circles:[],points:[]};}
       else{t.html='<div class="v4scroll">'+names.map(function(c,i){var a=CITYCARD[c];return citycard(a[0],a[1],a[2],a[3],a[4],a[5]).replace('data-tap="'+a[0]+'"','data-tap="'+a[0]+'" data-kind="city" data-idx="'+(i+1)+'"').replace(/<\/div><\/div>$/,(p.apprec?apprecHTML(c,c):'')+'</div></div>');}).join('')+'</div>';t.layers={pins:[],polys:names.map(function(c){return {pts:blob(cityCtr(c),5,'city'+c,20),label:c,fillOpacity:0.07};}),circles:[],points:[]};}
-      t.extra.push({id:'swap',chips:[{label:useZone?'按城市看':'按生活圈看',icon:useZone?'ti-building-skyscraper':'ti-map-2',fn:function(){t.kind=useZone?'city':'zone';refreshTurn(t);}}]});
-      t.asks=firstMissing(['dest','budget']);return;}
+      t.extra.push({id:'swap',chips:[{label:useZone?'按城市推荐':'按生活圈推荐',icon:useZone?'ti-building-skyscraper':'ti-map-2',fn:function(){t.kind=useZone?'city':'zone';refreshTurn(t);}}]});
+      t.asks=[];return;}
     if(k==='school'){t.asks=t.skipped?[]:firstMissing(['kids','htype','budget']);if(t.asks.length){t.html='';t.lead='';t.layers=null;t.extra=[];t.askFirst=true;t.askHead='先补上孩子学段、房型和预算，我确认学区内有对应房源供应后再推学校（选完点确定）：';t.pick=null;return;}t.askFirst=false;var seg=/小学/.test(p.kids||'')?'小学':/学龄前/.test(p.kids||'')?'学龄前':'中学',sp=p.schoolPref||'公立高分',segPool=SCHOOL_POOL[seg]||SCHOOL_POOL['中学'],sa=(segPool[sp]||segPool['公立高分']||[]).filter(function(x){return !(t.excludeNames&&t.excludeNames.indexOf(x[0])>=0);}).slice(0,4);
       t.lead='按「'+(p.kids||'中学')+(sp?(' · '+sp):'')+'」'+(p.tCity?('，优先 '+p.tCity+' 附近'):'')+'，这几所最符合（点开看详情；说「要 X 的 '+V4.catchWord+'房源」直接出房）：';t.html='<div class="v4scroll">'+sa.map(function(s,i){return schoolcard(s[0],s[1],s[2],s[3]).replace('data-kind="school"','data-kind="school" data-idx="'+(i+1)+'"');}).join('')+'</div>';
       t.layers={pins:[],polys:sa.map(function(s){return {pts:blob(schoolGeo(s[0]),1.5,'cat'+s[0],16),color:'#8A5A0B',fillOpacity:0.07,cond:true,label:s[0]+' · '+V4.catchWord};}),circles:[],points:sa.map(function(s,i){return {geo:schoolGeo(s[0]),icon:'ti-school',label:(i+1)+''};})};
@@ -1533,7 +1534,7 @@ return null;}
   var MX_KINDS={listing:1,nb:1,zone:1,city:1,school:1,district:1,afford:1,stress:1,market:1,qa:1,compare:1,knowledge:1,timing:1,narrative:1,browse:1,correction:1,ref:1,more:1,daily:1,ack:1,who:1,agentq:1,advice:1,share:1,offtopic:1,closing:1};
   if(typeof mxApply==='function'){var _mxApply5=mxApply;mxApply=function(res,t){mxIntent=(res&&MX_KINDS[res.intent])?res.intent:null;mxIntentLast=mxIntent;_mxApply5(res,t);};}
   /* ---------- 模型抽取：补字段口径 ---------- */
-  if(typeof mxSystem==='function'){var _mxSystem5=mxSystem;mxSystem=function(){return _mxSystem5()+'\n11. 「租在 / 住在 / 现在在 X」写 curCity（当前居住），不写目标区域；「老婆在 X 上班我在 Y」通勤目的地写「X、Y」；「手里 / 积蓄 60 万」写 down；多项负债（车贷 800 + 房贷 2500）合并成 debts 3300；「两年内买」timeline 写 1–2年；「一家四口」family 写 两大两小；身份（PR / 公民 / 工签 / 学签 / 非居民）写 identity；「刚移民」firstTime 写 是。\n12. 问答句（均价 / 会不会涨 / 该不该买 / 交什么税 / 怎么下 offer）不抽地名进目标区域；比较句（X 和 Y 哪个）两边都不写目标区域。';};}
+  if(typeof mxSystem==='function'){var _mxSystem5=mxSystem;mxSystem=function(){return _mxSystem5()+'\n11. 「租在 / 住在 / 现在在 X」写 curCity（当前居住），不写目标区域；「老婆在 X 上班我在 Y」通勤目的地写「X、Y」；「手里 / 积蓄 60 万」写 down；多项负债（车贷 800 + 房贷 2500）合并成 debts 3300；「两年内买」timeline 写 1–2年；「一家四口」family 写 两大两小；身份（PR / 公民 / 工签 / 学签 / 非居民）写 identity；「刚移民」firstTime 写 是。「带孩子 / 有小孩 / 有娃 / 适合带孩子的家庭」family 写 带孩子家庭，「单身」写 单身，「情侣 / 夫妻两人」写 情侣/夫妻两口，「和父母一起住 / 三代」写 三代同堂——问句（哪个区域适合带孩子的家庭）里的家庭描述同样要抽。\n12. 问答句（均价 / 会不会涨 / 该不该买 / 交什么税 / 怎么下 offer）不抽地名进目标区域；比较句（X 和 Y 哪个）两边都不写目标区域。';};}
 
   /* ---------- 追问字典补充 ---------- */
   var _askFor5=askFor;askFor=function(f){var a=_askFor5(f);if(a)return a;var cityOpts=Object.keys(CITYCARD).filter(function(k){return /^[A-Za-z]/.test(k);}).slice(0,6);var map={identity:{label:'身份',text:'你的身份是？',opts:['PR','公民','工签','学签','非居民'],ph:'PR'},income:{label:'年收入',text:'家庭税前年收入大概多少？',opts:['10万','15万','20万','30万'],ph:'18 万'},down:{label:'首付',text:'首付大概多少？',opts:['10万','20万','30万','50万'],ph:'20 万'},debts:{label:'月负债',text:'每月固定还款（车贷、信用卡、其他房贷）？',opts:['0','500','1000','2000'],ph:'800'},tCity:{label:'区域',text:'看哪个区域？',opts:cityOpts,ph:cityOpts[0]},firstTime:{label:'首购',text:'是第一次买房吗？',opts:['是','否'],ph:'是'}};var x=map[f];if(!x)return null;return {field:f,label:x.label,text:x.text,opts:x.opts,ph:x.ph};};
