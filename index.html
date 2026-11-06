@@ -175,6 +175,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1502,6 +1503,7 @@ return null;}
     var mh=s.match(/(手里|手上|积蓄|存款|现金)\s*(有|大概|约)?\s*([\d.]+)\s*万/);if(mh){if(!afford.down){afford.down=Math.round(parseFloat(mh[3])*10000);profile.downPay=mh[3]+'万';}s=s.replace(mh[0],'');}
     m=s.match(/预算\s*(?:改成|改为|是|大概|约|差不多|在|定在)?\s*(\d{2,4})\s*(出头|左右|以内|以下|内|之内)?(?!\s*(万|w|%|年|套|室|房|分|k))/i)||s.match(/(?:大概|差不多|约)\s*(\d{2,4})\s*(出头|左右)(?!\s*万)/);if(m){var bn=parseInt(m[1],10);if(bn>=30&&bn<=2000)profile.budget=m[2]==='出头'?(bn+'–'+(bn+20)+'万'):m[2]==='左右'?((bn-10)+'–'+(bn+10)+'万'):('≤'+bn+'万');}
     if(!m){var mb2=/(\d{2,4})\s*(以内|以下)(?!\s*(万|w|套|室|房|分|年|k))/i,mm2=mb2.exec(s);if(mm2){var pre2=s.slice(Math.max(0,mm2.index-4),mm2.index),bn2=parseInt(mm2[1],10);if(!/月供|月费|管理费|物业费|首付|收入|负债|分钟/.test(pre2)&&bn2>=30&&bn2<=2000)profile.budget='≤'+bn2+'万';}}
+    if(/^\s*(看|找|推荐|给我)\s*.{2,30}?\s*的\s*(社区|房源|房子|商圈|学校)/.test(s)&&!/也|还有|和|、/.test(s)){profile.tCity='';profile.tZone='';profile.tNb='';}
     _extract5(s);
     if(/通勤|上班|上学|车程|分钟/.test(s)&&/坐|乘|搭/.test(s)&&profile.nearTransit&&!before.nearTransit)profile.nearTransit='';
     var ya=s.match(/(\d{1,2})\s*年\s*(内|以内|之内)/);if(ya&&!/持有|住|打算/.test(s.slice(Math.max(0,ya.index-3),ya.index)))profile.age=(parseInt(ya[1],10)<=10?'10 年内':'20年内');else if(/新一点|新一些|较新|新点的|要新/.test(s)&&!/全新|新房|楼花/.test(s))profile.age='10 年内';
