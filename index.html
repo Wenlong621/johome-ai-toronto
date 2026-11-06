@@ -180,6 +180,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -252,6 +253,8 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v3und .tag.new{border-color:#0F6E56;color:#0F6E56;font-weight:600}
 
 .v4cmp{width:100%;border-collapse:collapse;font-size:11.5px;background:var(--color-background-primary);border-radius:10px;overflow:hidden}.v4cmp th,.v4cmp td{border-top:0.5px solid var(--color-border-tertiary);padding:5px 5px;text-align:left;vertical-align:top;line-height:1.4}.v4cmp tr:first-child th{border-top:0}.v4cmp th{font-weight:500;color:#0F6E56;font-size:11.5px}.v4cmp td.k{color:var(--color-text-secondary);white-space:nowrap;width:64px}
+
+.v4fitb{max-height:38px;overflow:hidden;position:relative}.v4fitb.open{max-height:none}.v4fitb:not(.open):after{content:'';position:absolute;left:0;right:0;bottom:0;height:16px;background:linear-gradient(rgba(225,245,238,0),#E1F5EE)}.v4fitmore{display:inline-flex;align-items:center;gap:3px;margin-top:6px;padding:0;border:0;background:transparent;color:#0F6E56;font-size:11.5px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -1779,9 +1782,12 @@ return null;}
     if(/挂.*久|卖不掉|没人买|挂了多久|为啥.*挂|为什么.*挂|dom/i.test(q)){var med2=Math.round(d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9)),diff=Math.round((l.price-med2)/med2*100);return '挂牌 '+l.days+' 天，社区平均 '+d.dom+' 天'+(l.days>d.dom?'，确实偏久':'，其实不算久')+'；挂牌价比同类成交中位'+(diff>=0?'高 ':'低 ')+Math.abs(diff)+'%；降价历史：'+(l.dropped?'有过一次降价':'无')+'。只给数据，不猜卖家动机。<br><span class="muted" style="font-size:10.5px">数据：房源详情 · 成交记录（演示）</span>';}
     if(/^(怎么样|如何|咋样|怎样|这套怎么样|值得看吗)[?？]*$/.test(q.trim())){var ml=matchLines(l),med3=Math.round(d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9)),diff3=Math.round((l.price-med3)/med3*100);return '两句话摘要：<b>匹配</b> ✓ '+ml.ok.length+' 项'+(ml.bad.length?(' · ✗ '+ml.bad.length+' 项（'+ml.bad[0]+'）'):'')+'；<b>价格</b> 比同类成交中位'+(diff3>=0?'高 ':'低 ')+Math.abs(diff3)+'%。想细看就点上面的：值不值 / 月费含什么 / 有什么风险 / '+V4.catchWord+'学校。';}
     return _askAnswer5(l,q);};
+  /* ---------- 「为你而选」：默认两行，展开看全部 ---------- */
+  fitcard=function(t){return '<div class="cc" style="background:#E1F5EE;border-color:#9FE1CB"><div style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;color:#0F6E56;margin-bottom:5px"><i class="ti ti-sparkles"></i>为你而选</div><div class="v4fitb" style="font-size:12px;line-height:1.5;color:#085041">'+t+'</div><button class="v4fitmore" data-fitmore="1" style="display:none">展开看全部 <i class="ti ti-chevron-down"></i></button></div>';};
+  function wireFit(scope){var n=scope.querySelectorAll('.v4fitb'),i;for(i=0;i<n.length;i++)(function(b){var btn=b.nextElementSibling;if(!btn||!btn.getAttribute('data-fitmore'))return;if(b.scrollHeight>b.clientHeight+4){btn.style.display='';btn.onclick=function(){var open=b.classList.toggle('open');btn.innerHTML=open?'收起 <i class="ti ti-chevron-up"></i>':'展开看全部 <i class="ti ti-chevron-down"></i>';};}else{b.classList.add('open');}})(n[i]);}
   /* ---------- 档案页：推送上限 ---------- */
   var _profilePage5=profilePage;profilePage=function(){if(!daily.max)daily.max=5;var h=_profilePage5(),mark='<div class="muted" style="font-size:10.5px;margin-top:8px">最近执行：';var row='<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><div style="flex:1;font-size:12.5px">每天最多推</div>'+[3,5,10].map(function(n){return '<button class="q'+(daily.max===n?' on':'')+'" data-dmax="'+n+'">'+n+' 套</button>';}).join('')+'</div>';return h.indexOf(mark)>=0?h.replace(mark,row+mark):h;};
-  var _wirePage5=wirePage;wirePage=function(){_wirePage5();var n=detail.querySelectorAll('[data-dmax]'),i;for(i=0;i<n.length;i++)(function(el){el.onclick=function(){daily.max=parseInt(el.getAttribute('data-dmax'),10);replacePage(profilePage());};})(n[i]);};
+  var _wirePage5=wirePage;wirePage=function(){_wirePage5();setTimeout(function(){wireFit(detail);},0);var n=detail.querySelectorAll('[data-dmax]'),i;for(i=0;i<n.length;i++)(function(el){el.onclick=function(){daily.max=parseInt(el.getAttribute('data-dmax'),10);replacePage(profilePage());};})(n[i]);};
   var _simulateDaily5=simulateDaily;simulateDaily=function(){var sv=runBatch;runBatch=function(o){o=o||{};o.cap=Math.min(o.cap||10,daily.max||10);return sv(o);};try{_simulateDaily5();}finally{runBatch=sv;}};
   window.__v4.send=function(t){v4Send(t);};
   window.__v5={pre:preIntent,cmp:parseCompare,know:KNOW,hist:HIST,refs:parseRefs,narr:isNarrative,corr:function(){return corr;},fb:function(){return fbReasons;}};
