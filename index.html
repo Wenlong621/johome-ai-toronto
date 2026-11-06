@@ -181,6 +181,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -255,6 +256,18 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v4cmp{width:100%;border-collapse:collapse;font-size:11.5px;background:var(--color-background-primary);border-radius:10px;overflow:hidden}.v4cmp th,.v4cmp td{border-top:0.5px solid var(--color-border-tertiary);padding:5px 5px;text-align:left;vertical-align:top;line-height:1.4}.v4cmp tr:first-child th{border-top:0}.v4cmp th{font-weight:500;color:#0F6E56;font-size:11.5px}.v4cmp td.k{color:var(--color-text-secondary);white-space:nowrap;width:64px}
 
 .v4fitb{max-height:38px;overflow:hidden;position:relative}.v4fitb.open{max-height:none}.v4fitb:not(.open):after{content:'';position:absolute;left:0;right:0;bottom:0;height:16px;background:linear-gradient(rgba(225,245,238,0),#E1F5EE)}.v4fitmore{display:inline-flex;align-items:center;gap:3px;margin-top:6px;padding:0;border:0;background:transparent;color:#0F6E56;font-size:11.5px;cursor:pointer}
+/* 对话区字号整体收小（Mike 2026-11-06：少滚动） */
+#jhp .chat .bub{font-size:11px;line-height:1.45;padding:7px 10px;max-width:228px}
+#jhp .chat .ubub{font-size:11px;line-height:1.45;padding:7px 10px;max-width:220px}
+#jhp .chat .av{width:22px;height:22px}#jhp .chat .av i{font-size:12px}
+#jhp .chat .row{gap:6px}#jhp .chat .qr{gap:5px;padding-left:28px}
+#jhp .chat .q{font-size:10.5px;padding:4px 9px}
+#jhp .chat .v3und{font-size:10px;padding:6px 8px;gap:4px}#jhp .chat .v3und .tag{font-size:10px;padding:2px 6px}
+#jhp .chat .v4undo{font-size:10px;padding:5px 8px}#jhp .chat .v4undo .v3mini{font-size:10px;padding:2px 7px}
+#jhp .chat .v4askl{font-size:10px;width:32px;padding-top:6px}#jhp .chat .v4askin{height:28px;font-size:11px}
+#jhp .chat .v4cmp{font-size:10.5px}#jhp .chat .v4cmp th,#jhp .chat .v4cmp td{padding:4px 4px}
+#jhp .chat .cc{padding:9px}#jhp .chat .cc .muted{font-size:10px}
+#jhp .chat .met .v{font-size:12px}#jhp .chat .met .l{font-size:9.5px}
 </style>
 </head>
 <body>
