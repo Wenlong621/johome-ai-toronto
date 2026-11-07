@@ -184,6 +184,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1819,6 +1820,8 @@ return null;}
   var _profilePage5=profilePage;profilePage=function(){if(!daily.max)daily.max=5;var h=_profilePage5(),mark='<div class="muted" style="font-size:10.5px;margin-top:8px">最近执行：';var row='<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><div style="flex:1;font-size:12.5px">每天最多推</div>'+[3,5,10].map(function(n){return '<button class="q'+(daily.max===n?' on':'')+'" data-dmax="'+n+'">'+n+' 套</button>';}).join('')+'</div>';return h.indexOf(mark)>=0?h.replace(mark,row+mark):h;};
   var _wirePage5=wirePage;wirePage=function(){_wirePage5();setTimeout(function(){wireFit(detail);},0);var n=detail.querySelectorAll('[data-dmax]'),i;for(i=0;i<n.length;i++)(function(el){el.onclick=function(){daily.max=parseInt(el.getAttribute('data-dmax'),10);replacePage(profilePage());};})(n[i]);};
   var _simulateDaily5=simulateDaily;simulateDaily=function(){var sv=runBatch;runBatch=function(o){o=o||{};o.cap=Math.min(o.cap||10,daily.max||10);return sv(o);};try{_simulateDaily5();}finally{runBatch=sv;}};
+  /* 「为你而选」文字不再截断（展开后要完整） */
+  snipTxt=function(s){return (''+(s||'')).replace(/<[^>]*>/g,'');};
   window.__v4.send=function(t){v4Send(t);};
   window.__v5={pre:preIntent,cmp:parseCompare,know:KNOW,hist:HIST,refs:parseRefs,narr:isNarrative,corr:function(){return corr;},fb:function(){return fbReasons;}};
 
