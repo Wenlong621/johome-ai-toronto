@@ -188,6 +188,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -276,6 +277,8 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 #jhp .chat .met .v{font-size:12px}#jhp .chat .met .l{font-size:9.5px}
 
 .v4fb{display:flex;gap:6px;margin-top:6px}#jhp .chat .v4fb .q{font-size:10.5px;padding:3px 9px}
+
+#jhp .chat .v3und .v3mini{margin-left:auto;font-size:10px;padding:2px 8px}
 </style>
 </head>
 <body>
@@ -1603,11 +1606,14 @@ return null;}
   var _condChips5=condChips;condChips=function(kind,pending,t){if(NOEXTRACT[kind]||kind==='market'||kind==='stress')return [];var out=_condChips5(kind,pending,t);if(t&&mxIntentLast&&!t.mxShown){t.mxShown=true;t.mxIntent=mxIntentLast;}if(t&&t.mxIntent)out.unshift({t:'模型判意图：'+(INTENT_CN[t.mxIntent]||t.mxIntent),cls:'soft'});return out;};
 
   /* ---------- 输入分发：先判无抽取意图 → 修正句重出上一结果 → 原流程 ---------- */
-  var _renderTurn5=renderTurn;renderTurn=function(t){if(t.silent)return;_renderTurn5(t);};
+  var _renderTurn5=renderTurn;renderTurn=function(t){if(t.silent)return;_renderTurn5(t);if(pendingUndo&&!pendingUndo.done){var und=t.el&&t.el.querySelector('.v3und');if(und){var entry=pendingUndo;pendingUndo=null;entry.done=true;var b=document.createElement('button');b.className='v3mini ghost';b.setAttribute('data-undo','1');b.textContent='撤销';und.appendChild(b);b.onclick=function(){var wrap=und;undoAction(entry,wrap);};}}};
   function rerunNew(from){if(!from||!from.kind||NEW_KINDS[from.kind])return;if(from.el)lockPick(from);var tn=newTurn();tn.kind=from.kind;tn.text=from.text;tn.skipped=from.skipped;tn.newKeys=from.newKeys||[];tn.noNew=!!from.noNew;from.newKeys=null;from.noNew=false;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
   rerunLast=function(){if(lastTurn&&lastTurn.kind)rerunNew(lastTurn);};
   var _applyDislike5=applyDislike;applyDislike=function(l,c){_applyDislike5(l,c);setTimeout(function(){rerunLast();},900);};
-  showUndo=function(before,chips){var r=document.createElement('div');r.className='row';r.innerHTML='<div class="av" style="background:var(--color-background-secondary);color:#0F6E56"><i class="ti ti-database"></i></div><div class="v4undo">已记入档案：'+chips.map(function(c){return esc(c.t);}).join('、')+'<button class="v3mini ghost" data-undo="1">撤销</button></div>';list.appendChild(r);r.querySelector('[data-undo]').onclick=function(){restore(profile,before);chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();r.querySelector('.v4undo').innerHTML='已撤销，档案回到上一版本（v'+(profile._v)+'）';if(lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]){addAI('按撤销后的条件重出结果：');rerunNew(lastTurn);}};scroll();};
+  var pendingUndo=null;
+  function undoAction(entry,el){if(entry.done2)return;entry.done2=true;restore(profile,entry.before);entry.chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();if(el)el.innerHTML='<span class="muted">已撤销，档案回到上一版本（v'+(profile._v)+'）</span>';if(lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]){addAI('按撤销后的条件重出结果：');rerunNew(lastTurn);}}
+  function undoRow(entry){var r=document.createElement('div');r.className='row';r.innerHTML='<div class="av" style="background:var(--color-background-secondary);color:#0F6E56"><i class="ti ti-database"></i></div><div class="v4undo">已记入档案：'+entry.chips.map(function(c){return esc(c.t);}).join('、')+'<button class="v3mini ghost" data-undo="1">撤销</button></div>';list.appendChild(r);r.querySelector('[data-undo]').onclick=function(){undoAction(entry,r.querySelector('.v4undo'));};scroll();}
+  showUndo=function(before,chips){var entry={before:before,chips:chips,done:false};pendingUndo=entry;setTimeout(function(){if(pendingUndo===entry&&!entry.done){pendingUndo=null;entry.done=true;undoRow(entry);}},1100);};
   var _v4Send5=v4Send;v4Send=function(t){corr={type:'',field:'',from:'',to:''};mxIntent=null;mxIntentLast=null;if(typeof mxOn==='function'&&mxOn()){_v4Send5(t);return;}var pre=preIntent(t);if(pre&&NOEXTRACT[pre]){addUser(t);var tn=newTurn();tn.kind=pre;tn.text=t;typing(function(){buildTurn(tn);renderTurn(tn);if(tn.after)tn.after();});return;}
     if(pre==='market'){addUser(t);var before=snap(profile);lastNeg=[];extract(t);var pri=profile.priority;restore(profile,before);if(/学区/.test(pri||''))profile.priority=pri;var tm=newTurn();tm.kind='market';tm.text=t;typing(function(){buildTurn(tm);renderTurn(tm);});return;}
     if(pre==='stress'){addUser(t);var ts=newTurn();ts.kind='stress';ts.text=t;typing(function(){buildTurn(ts);renderTurn(ts);});return;}
