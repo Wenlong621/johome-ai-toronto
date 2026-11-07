@@ -187,6 +187,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -273,6 +274,8 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 #jhp .chat .v4cmp{font-size:10.5px}#jhp .chat .v4cmp th,#jhp .chat .v4cmp td{padding:4px 4px}
 #jhp .chat .cc{padding:9px}#jhp .chat .cc .muted{font-size:10px}
 #jhp .chat .met .v{font-size:12px}#jhp .chat .met .l{font-size:9.5px}
+
+.v4fb{display:flex;gap:6px;margin-top:6px}#jhp .chat .v4fb .q{font-size:10.5px;padding:3px 9px}
 </style>
 </head>
 <body>
@@ -1776,7 +1779,7 @@ return null;}
       if(k==='listing'&&t.allRegion&&t.html&&!(t.asks&&t.asks.length)){var cs=Object.keys(CITYCARD).filter(function(x){return /^[A-Za-z]/.test(x);}).slice(0,6);t.extra.push({id:'reg'+t.id,icon:'ti-map-pin',text:'这是全'+V4.region+'的结果。想限定区域的话点一个，或直接说「看 X 的房源」：',chips:cs.map(function(c){return {label:c,fn:function(){v4Send('看 '+c+' 的房源');}};})});}
       if(k==='afford'&&t.text&&/(够不够|够吗).*(买|房)|买个.*(房|室)/.test(t.text)){var regs=findRegionsAll(normAlias(t.text)),c=regs.length?cityOf(regs[0].name):(profile.tCity||'').split('、')[0],bd=parseInt(((t.text.match(/(\d|两|三)\s*(房|室)/)||[0,0])[1]),10)||cnNum((t.text.match(/(两|三|四)\s*(房|室)/)||[0,''])[1])||parseInt(((profile.beds||'').match(/\d/)||[0])[0],10);if(c){var med=poolMedian(c,bd||0,profile.htype),res=affordRun().res,ok=med&&res.price>=med*10000;t.lead='你最高可买约 '+fmtMoney(res.price)+'，'+c+' '+(bd?bd+' 房':'')+(profile.htype?typeCN(profile.htype):'')+'在售中位约 $'+med+'万，'+(ok?'够，在范围内':'差一点，可以看便宜的区或放宽')+'：';t.extra.push({id:'af'+t.id,keep:true,chips:[{label:'按这个预算找房',icon:'ti-home',fn:function(){profile.budget='≤'+Math.round(res.price/10000)+'万';if(!profile.tCity)profile.tCity=c;pref();v4Send('看 '+c+' 的房源');}},{label:'看便宜的区',fn:function(){v4Send('哪里最便宜');}}]});}}
       if((k==='zone'||k==='city')&&t.pick&&t.pick.names.length)t.lead=pickLead(t);
-      if(t.html&&t.html.indexOf('v4scroll')>=0&&!(t.asks&&t.asks.length))t.extra.push(fbExtra(t));
+      if(t.html&&t.html.indexOf('v4scroll')>=0&&!(t.asks&&t.asks.length))t.html+='<div class="v4fb"><button class="q" data-fb="ok"><i class="ti ti-thumb-up"></i>满意</button><button class="q ghost" data-fb="bad"><i class="ti ti-thumb-down"></i>不满意</button></div>';
       return;}
     t.html='';t.lead='';t.layers=null;t.relaxOpts=[];t.extra=(t.extra||[]).filter(function(x){return x.keep;});t.asks=null;t.pick=null;
     if(k==='compare')buildCompare(t);else if(k==='knowledge')buildKnowledge(t);else if(k==='timing')buildTiming(t);else if(k==='market')buildMarket(t);else if(k==='stress')buildStress(t);else if(k==='daily')buildDaily(t);else if(k==='narrative')buildNarrative(t);else if(k==='browse')buildBrowse(t);else if(k==='ref')buildRef(t);else buildSmalltalk(t);};
@@ -1797,7 +1800,7 @@ return null;}
   function pickLead(t){var useZone=t.pick.kind==='zone';return '为你挑选了这'+t.pick.names.length+'个'+(useZone?'生活圈':'城市')+'：'+t.pick.names.map(function(nm){return pickWhy(nm,useZone);}).join('；')+'。点开卡片看详情。';}
   function fbExtra(t){var noun=t.kind==='listing'?'房源':(t.pick?t.pick.noun:'结果');return {id:'fb'+t.id,text:'这组'+noun+'怎么样？',chips:[{label:'满意',icon:'ti-thumb-up',fn:function(){fbReasons.push({turn:t.id,kind:t.kind,ok:true});var more=(t.kind==='listing'&&dailyEligible()&&!daily.on)?' 要不要按这个条件每天推给你？':'';addAI('👍 记下了，'+(t.kind==='listing'?'点卡片看详情，或说「帮我约看第 N 套」。':'点「确定」选定进入下一层，或点卡片看详情。')+more);if(more)quickAct([{label:'开每日推荐',icon:'ti-bell',fn:function(){disablePickables();v4Send('就按这个每天推给我');}},{label:'先不用',fn:function(){disablePickables();}}],'pickable');}},{label:'不满意',icon:'ti-thumb-down',fn:function(){fbReasons.push({turn:t.id,kind:t.kind,ok:false});if(t.kind==='listing'){dislikeReason(null);}else{addAI('不合适的话：');quickAct([{label:'换一批',icon:'ti-refresh',fn:function(){disablePickables();if(t.pick&&!t.pickDone)morePick(t);else v4Send('换一批');}},{label:'说新条件',icon:'ti-pencil',fn:function(){disablePickables();addAI('直接说，比如「预算改成 150」「不要临街」「换个通勤目的地」。');}}],'pickable');}}}]};}
   /* ---------- 选定块：选中两个可「对比这两个」 ---------- */
-  var _wireTurn5=wireTurn;wireTurn=function(t){_wireTurn5(t);var ok=t.el&&t.el.querySelector('[data-pickok]');if(ok&&t.pick&&!t.pick.single&&!t.el.querySelector('[data-pickcmp]')){var b=document.createElement('button');b.className='q ghost';b.setAttribute('data-pickcmp','1');b.innerHTML='<i class="ti ti-arrows-left-right"></i>对比选中的两个';b.onclick=function(){var sel=t.pickSel||[];if(sel.length!==2){addAI('先选中两个'+t.pick.noun+'再对比。');return;}var kind={city:'tCity',zone:'tZone',nb:'tNb',district:'district'}[t.pick.kind]||'tNb';addUser(sel[0]+' 和 '+sel[1]+' 哪个更适合我');var tn=newTurn();tn.kind='compare';tn.text=sel[0]+' 和 '+sel[1]+' 哪个更适合我';tn.cmp={layer:'region',kind:kind,A:sel[0],B:sel[1]};typing(function(){buildTurn(tn);renderTurn(tn);});};ok.parentNode.insertBefore(b,ok.nextSibling);}};
+  var _wireTurn5=wireTurn;wireTurn=function(t){_wireTurn5(t);(function(){var fb=t.el&&t.el.querySelectorAll('[data-fb]'),i;if(!fb||!fb.length)return;var x=fbExtra(t);for(i=0;i<fb.length;i++)(function(b){b.onclick=function(){var all=b.parentNode.querySelectorAll('button'),j;for(j=0;j<all.length;j++){all[j].disabled=true;all[j].style.opacity='0.5';}x.chips[b.getAttribute('data-fb')==='ok'?0:1].fn();};})(fb[i]);})();var ok=t.el&&t.el.querySelector('[data-pickok]');if(ok&&t.pick&&!t.pick.single&&!t.el.querySelector('[data-pickcmp]')){var b=document.createElement('button');b.className='q ghost';b.setAttribute('data-pickcmp','1');b.innerHTML='<i class="ti ti-arrows-left-right"></i>对比选中的两个';b.onclick=function(){var sel=t.pickSel||[];if(sel.length!==2){addAI('先选中两个'+t.pick.noun+'再对比。');return;}var kind={city:'tCity',zone:'tZone',nb:'tNb',district:'district'}[t.pick.kind]||'tNb';addUser(sel[0]+' 和 '+sel[1]+' 哪个更适合我');var tn=newTurn();tn.kind='compare';tn.text=sel[0]+' 和 '+sel[1]+' 哪个更适合我';tn.cmp={layer:'region',kind:kind,A:sel[0],B:sel[1]};typing(function(){buildTurn(tn);renderTurn(tn);});};ok.parentNode.insertBefore(b,ok.nextSibling);}};
 
   /* ---------- 房龄 20 年内硬筛；可负担性月供上限 ---------- */
   var _stage1_5=stage1;stage1=function(p,l,o){if(/20\s*年内/.test(p.age||'')&&l.year<2006&&!(o&&o.loose))return false;return _stage1_5(p,l,o);};
