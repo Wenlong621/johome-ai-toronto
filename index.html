@@ -197,6 +197,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1830,7 +1831,7 @@ return null;}
     return name+'：'+parts.slice(0,3).join('、');}
   function whySchool(name){var p=profile,parts=[],s=schoolInfo(name)||{},br=budgetRange(p.budget),nbs=schoolNbs(name)||[],sum=0,n=0;
     if(/^\d/.test(''+(s.score||'')))parts.push('Fraser 评分 '+s.score);
-    if(s.course&&s.course!=='—')parts.push(s.course+' 课程');
+    if(s.course&&s.course!=='—')parts.push(s.course);
     nbs.forEach(function(x){var m=nbData(x).med;if(m){sum+=m;n++;}});var med=n?Math.round(sum/n):0;
     if(br&&med)parts.push(med<=br[1]?(V4.catchWord+'范围内中位 $'+med+'万在预算内'):(V4.catchWord+'范围内中位 $'+med+'万，略超预算'));
     whyFill(parts,[s.sub]);
