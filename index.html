@@ -193,6 +193,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1879,6 +1880,7 @@ return null;}
   function isLook(s){return /^\s*(看|看看|看下|看一下|查|查下|了解|瞧瞧)|有什么|有啥|有哪些|怎么样|如何|咋样|均价|多少钱|好不好|值得.*吗|适合.*吗/.test(s)&&!/想在|想买|想住|打算|准备在|考虑在|要在|定在|就在|决定/.test(s);}
   function regNames(src){var out=[];RKEYS.forEach(function(k){(src[k]||'').split('、').filter(Boolean).forEach(function(n){out.push({k:k,n:n});});});return out;}
   function regHas(a,r){return a.some(function(x){return x.k===r.k&&x.n===r.n;});}
+  var INTENT_RE=/想在|想买|想住|打算在|准备在|考虑在|要在|定在|决定|就看|只看|主要看|重点看|锁定/;
   var _extract6=extract;extract=function(t){if(!t)return;if(extracting==='x'){_extract6(t);return;}
     regionOp='';watchFull=false;var before=regNames(profile),t2=t,preRemoved='';
     /* 「不要 X 了」而 X 只在关注区域里（不在本次范围）：从关注区域移除，不进「排除区域」 */
@@ -1887,11 +1889,18 @@ return null;}
     _extract6(t2);
     if(preRemoved){corr={type:'delete',field:'region',from:preRemoved,to:''};regionOp='remove';}
     var R=scopeNames().filter(function(r){return !regHas(before,r);});
-    if(corr.type==='replace'){if(RKEYS.indexOf(corr.field)>=0){if(corr.from)watchRemove(corr.from);if(corr.to)watchAdd(corr.field,corr.to,true);regionOp='replace';}}
+    if(corr.type==='replace'){if(RKEYS.indexOf(corr.field)>=0&&corr.to){
+        /* 只换被纠正的那一个：本次范围里其他区域不动 */
+        setFocus(before.filter(function(r){return r.n!==corr.from&&r.n!==corr.to;}).concat([{k:corr.field,n:corr.to}]));
+        if(corr.from)watchRemove(corr.from);watchAdd(corr.field,corr.to,true);regionOp='replace';}}
     else if(corr.type==='delete'){if(corr.from&&watchRemove(corr.from))regionOp='remove';}
-    else if(!corr.type&&R.length){var joinOld=/也|还有|还想|再加|加上|另外|同时/.test(t),look=isLook(t)&&watchList().length>0;
-      setFocus(joinOld?before.concat(R):R);
-      if(look)regionOp='look';else{R.forEach(function(r){watchAdd(r.k,r.n,true);});regionOp=joinOld?'add':'watch';}}
+    else if(!corr.type){var joinOld=/也|还有|还想|再加|加上|另外|同时/.test(t),look=isLook(t)&&watchList().length>0;
+      if(R.length){setFocus(joinOld?before.concat(R):R);
+        if(look)regionOp='look';else{R.forEach(function(r){watchAdd(r.k,r.n,true);});regionOp=joinOld?'add':'watch';}}
+      else if(INTENT_RE.test(t)){
+        /* 明确意向，但说的区域已经在本次范围里：收到这些区域，并记入关注区域 */
+        var said=findRegionsAll(normAlias(t)).map(function(r){return r.name;}),M=scopeNames().filter(function(r){return said.indexOf(r.n)>=0;});
+        if(M.length){if(!joinOld)setFocus(M);M.forEach(function(r){watchAdd(r.k,r.n,true);});regionOp='watch';}}}
     lastNeg.forEach(function(a){if(a.dim==='排除区域'&&watchRemove(a.value))regionOp=regionOp||'remove';});
     if(regionOp)pref();};
 
@@ -1932,8 +1941,8 @@ return null;}
   function addWatchRow(t){var chips=[],sc=scopeNames(),others=otherBranches(),kind=t.kind,notIn=sc.filter(function(r){return !watchHas(r.k,r.n);});
     if(notIn.length)chips.push({label:'把 '+notIn.map(function(r){return r.n;}).join('、')+' 加入关注区域',icon:'ti-star',fn:function(){watchFull=false;notIn.forEach(function(r){watchAdd(r.k,r.n,true);});pref();addAI(watchFull?'关注区域最多 5 个，先在档案里去掉一个再加。':('已加入关注区域：'+watchLabels().join('；')+'。每日推荐和没指定区域的找房会把这些区域一起看。'));}});
     others.slice(0,2).forEach(function(b){chips.push({label:'回到 '+branchLabel(b),icon:'ti-arrow-back-up',fn:function(){refocus(branchItems(b),'回到 '+branchLabel(b),kind);}});});
-    if(others.length&&sc.length)chips.push({label:'关注区域一起看',icon:'ti-stack-2',fn:function(){var it=watchItems();sc.forEach(function(r){if(!it.some(function(x){return x.k===r.k&&x.n===r.n;}))it.push(r);});refocus(it,'关注区域一起看',kind);}});
-    if(others.length===1&&sc.length===1){var o=branchItems(others[0])[0];chips.push({label:'对比 '+sc[0].n+' 和 '+o.n,icon:'ti-arrows-left-right',fn:function(){v4Send(sc[0].n+' 和 '+o.n+' 哪个更适合我');}});}
+    if(others.length&&sc.length)chips.push({label:notIn.length?'和关注区域一起看':'关注区域一起看',icon:'ti-stack-2',fn:function(){var it=watchItems();sc.forEach(function(r){if(!it.some(function(x){return x.k===r.k&&x.n===r.n;}))it.push(r);});refocus(it,notIn.length?(sc.map(function(r){return r.n;}).join('、')+' 和关注区域一起看'):'关注区域一起看',kind);}});
+    if(others.length===1&&sc.length===1&&branchItems(others[0])[0].k===sc[0].k){var o=branchItems(others[0])[0];chips.push({label:'对比 '+sc[0].n+' 和 '+o.n,icon:'ti-arrows-left-right',fn:function(){v4Send(sc[0].n+' 和 '+o.n+' 哪个更适合我');}});}
     if(chips.length)t.extra.push({id:'wr'+t.id,chips:chips});}
   var _buildTurn6=buildTurn;buildTurn=function(t){var k=t.kind;
     /* 没指定区域：沿用本次范围；本次范围为空则取全部关注区域；都为空才按全域 */
