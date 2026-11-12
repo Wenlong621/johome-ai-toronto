@@ -194,6 +194,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1892,7 +1893,7 @@ return null;}
     if(corr.type==='replace'){if(RKEYS.indexOf(corr.field)>=0&&corr.to){
         /* 只换被纠正的那一个：本次范围里其他区域不动 */
         setFocus(before.filter(function(r){return r.n!==corr.from&&r.n!==corr.to;}).concat([{k:corr.field,n:corr.to}]));
-        if(corr.from)watchRemove(corr.from);watchAdd(corr.field,corr.to,true);regionOp='replace';}}
+        var wasW=corr.from?watchRemove(corr.from):true;if(wasW||!watchList().length)watchAdd(corr.field,corr.to,true);regionOp='replace';}}
     else if(corr.type==='delete'){if(corr.from&&watchRemove(corr.from))regionOp='remove';}
     else if(!corr.type){var joinOld=/也|还有|还想|再加|加上|另外|同时/.test(t),look=isLook(t)&&watchList().length>0;
       if(R.length){setFocus(joinOld?before.concat(R):R);
@@ -1917,11 +1918,14 @@ return null;}
       else if(names.length){if(!op||op==='none')op='watch';if(op==='look'&&!watchList().length)op='watch';
         if(op==='add'){setFocus(before.concat(names.filter(function(r){return !regHas(before,r);})));names.forEach(function(r){watchAdd(r.k,r.n,true);});}
         else if(op==='replace'){var oldSaid=before.filter(function(r){return !regHas(names,r)&&said.indexOf(r.n)>=0;}),gone=oldSaid.length?oldSaid:before.filter(function(r){return !regHas(names,r);});
-          gone.forEach(function(r){watchRemove(r.n);});setFocus(before.filter(function(r){return !regHas(gone,r)&&!regHas(names,r);}).concat(names));names.forEach(function(r){watchAdd(r.k,r.n,true);});}
+          var wasW=!gone.length;gone.forEach(function(r){if(watchRemove(r.n))wasW=true;});setFocus(before.filter(function(r){return !regHas(gone,r)&&!regHas(names,r);}).concat(names));if(wasW||!watchList().length)names.forEach(function(r){watchAdd(r.k,r.n,true);});}
         else{setFocus(names);if(op!=='look')names.forEach(function(r){watchAdd(r.k,r.n,true);});}
         regionOp=op;}
       ((res&&res.avoid)||[]).forEach(function(a){if(a&&a.dim==='排除区域'&&watchRemove(a.value))regionOp=regionOp||'remove';});
       if(regionOp)pref();};}
+
+  var NOREGION_RE=/(区域|地方|位置|城市).{0,4}(不限|随便|都行|都可以)|哪里都行|哪都行|全.{0,3}都看/;
+  var _v4After6=v4After;v4After=function(t,before){if(!scopeNames().length&&!profile.dest&&watchList().length&&!NOREGION_RE.test(t||'')){focusWatchAll();pref();}_v4After6(t,before);};
 
   /* ---------- 选定块 / 比较里的「选 X」：切本次范围 + 加入关注区域，不再清空别的分支 ---------- */
   confirmPick=function(t){var sel=t.pickSel||[];if(!sel.length){addAI('先点一个'+t.pick.noun+'，或点「换一批」。');return;}var cfg=PICK_CFG[t.pick.kind],before=snap(profile);lockPick(t);var sentence=cfg.verb.replace('{n}',sel.join('、'));addUser(sentence);
