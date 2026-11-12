@@ -195,6 +195,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1925,7 +1926,7 @@ return null;}
       if(regionOp)pref();};}
 
   var NOREGION_RE=/(区域|地方|位置|城市).{0,4}(不限|随便|都行|都可以)|哪里都行|哪都行|全.{0,3}都看/;
-  var _v4After6=v4After;v4After=function(t,before){if(!scopeNames().length&&!profile.dest&&watchList().length&&!NOREGION_RE.test(t||'')){focusWatchAll();pref();}_v4After6(t,before);};
+  var _v4AfterW=v4After;v4After=function(t,before){if(!scopeNames().length&&!profile.dest&&watchList().length&&!NOREGION_RE.test(t||'')){focusWatchAll();pref();}_v4AfterW(t,before);};
 
   /* ---------- 选定块 / 比较里的「选 X」：切本次范围 + 加入关注区域，不再清空别的分支 ---------- */
   confirmPick=function(t){var sel=t.pickSel||[];if(!sel.length){addAI('先点一个'+t.pick.noun+'，或点「换一批」。');return;}var cfg=PICK_CFG[t.pick.kind],before=snap(profile);lockPick(t);var sentence=cfg.verb.replace('{n}',sel.join('、'));addUser(sentence);
