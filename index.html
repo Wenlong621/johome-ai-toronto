@@ -199,6 +199,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1763,7 +1764,7 @@ return null;}
     if(k==='ack'){t.lead=/谢/.test(t.text)?'不客气。想继续的话随时说。':'好。';return;}
     if(k==='who'){t.lead='我是 Johome 的找房助手：按你的条件出房源、帮你选区域和学校、算能买多少、解释流程和行情，说的偏好会记进你的档案。试试下面任一句：';t.extra.push({id:'st'+t.id,keep:true,chips:ex});return;}
     if(k==='agentq'){t.lead='Johome 是房产平台，我是平台上的 AI 助手，不是中介；找房、选区、算钱我来做，需要看房或谈价时可以把摘要交给平台上的持牌经纪，由你决定。';t.extra.push({id:'st'+t.id,keep:true,chips:[{label:'找经纪',icon:'ti-user-check',fn:function(){openHandoffPage();}},{label:'继续找房',icon:'ti-home',fn:function(){v4Send(V4.examples[0]);}}]});return;}
-    if(k==='offtopic'){t.lead='这个我帮不上（我只做找房这件事）。回到房子上，我可以：';t.extra.push({id:'st'+t.id,keep:true,chips:ex});return;}
+    if(k==='offtopic'){t.lead='不好意思，这个问题超出了我的能力范围，我目前专注在帮你找房、选区和算预算上。买房相关的问题随时问我，比如：';t.extra.push({id:'st'+t.id,keep:true,chips:ex});return;}
     if(k==='advice'){t.lead='要不要把积蓄投进去，这是个人投资决定，我不给建议。我能做的是把账算清楚：按你的收入和首付算可买上限，再做一次利率上涨的压力测试，你自己看余量够不够。';t.extra.push({id:'st'+t.id,keep:true,chips:[{label:'算能买多少',icon:'ti-calculator',fn:function(){v4Send('我买得起吗，能买多少');}},{label:'压力测试',icon:'ti-alert-triangle',fn:function(){v4Send('利率涨到 6% 我还扛得住吗');}}]});return;}
     if(k==='share'){var ids=lastBatch?lastBatch.items.map(function(it){return it.l.id;}):[];if(!ids.length){t.lead='现在还没有可分享的房源，出一批房源卡后再说「分享」。';return;}var link='https://johome.app/s/'+chash(ids.join(','))%100000;t.lead='分享链接已生成（含这 '+ids.length+' 套房源卡，不含你的档案）：<br><code style="font-size:11px">'+link+'</code><br>我不代发消息，复制后自己发给对方。';t.extra.push({id:'st'+t.id,keep:true,chips:[{label:'复制链接',icon:'ti-copy',fn:function(){try{navigator.clipboard.writeText(link);}catch(e){}addAI('已复制。');}}]});return;}
     if(k==='closing'){var p=profile,parts=[];[['区域',p.tNb||p.tZone||p.tCity||p.district||(p.school?('学校 '+p.school):'')||(p.dest?('通勤到 '+p.dest):'')],['预算',p.budget],['房型',p.htype],['卧室数',p.beds]].forEach(function(x){if(x[1])parts.push(x[0]+' '+x[1]);});t.lead='好，先到这。'+(parts.length?('档案里记着：'+parts.join('、')+'。'):'')+(dailyEligible()&&daily.on?'每日推荐照常，有完全符合的新房源会告诉你。':'')+'下次直接接着说就行。';return;}
