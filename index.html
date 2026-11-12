@@ -192,6 +192,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1327,7 +1328,7 @@ return null;}
   /* ---------- 各类结果 ---------- */
   function buildTurn(t){var p=profile,k=t.kind;t.html='';t.lead='';t.layers=null;t.relaxOpts=[];t.extra=t.extra||[];t.extra=t.extra.filter(function(x){return x.keep;});
     if(k==='listing'){if(!hasRegion(p)&&!t.allRegion){t.lead='现在没有区域条件了。告诉我想住哪（城市 / 生活圈 / 社区）、在哪上班，或想上哪所学校，我再找。';return;}var relaxOpt=t.relax?t.relax.opt:{},b=runBatch({relax:relaxOpt});t.batch=b;t.strictN=b.strict;b.items.forEach(function(it){it.relaxed=t.relax?[t.relax.label]:[];});
-      var scope=(p.tNb||p.tZone||p.tCity||'').replace(/、/g,' / ')||(p.district?(p.district+' 商圈半径内'):'')||(p.school?(p.school+' '+V4.catchWord+'范围'):'')||(p.dest?('到 '+p.dest+' '+(p.time||'45分钟')+'等时圈内'):'')||('全'+V4.region+'（你还没说区域）');
+      var scope=[p.tNb,p.tZone,p.tCity].filter(Boolean).join('、').replace(/、/g,' / ')||(p.district?(p.district+' 商圈半径内'):'')||(p.school?(p.school+' '+V4.catchWord+'范围'):'')||(p.dest?('到 '+p.dest+' '+(p.time||'45分钟')+'等时圈内'):'')||('全'+V4.region+'（你还没说区域）');
       if(!t.relax&&b.strict===0){t.lead='在 '+scope+'，完全符合你条件的在售房源有 0 套（不含「不考虑」项）。';t.relaxOpts=relaxOptions(p,{},null);}
       else{t.lead=t.relax?('按你的选择「'+t.relax.label+'」，在 '+scope+' 符合放宽后条件的在售房源 '+b.P2+' 套，'):('在 '+scope+'，完全符合的在售房源 '+b.strict+' 套，');t.lead+='按你的偏好排序，这 '+b.items.length+' 套最匹配（地图上同步标出）：';var cards='',i;for(i=0;i<Math.min(5,b.items.length);i++)cards+=v3card(b.items[i],i+1);if(b.items.length>5)cards+='<div class="cc" data-vall="1" style="width:104px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;cursor:pointer"><i class="ti ti-arrow-right" style="font-size:22px;color:#0F6E56"></i><span style="font-size:11.5px;line-height:1.35;color:#0F6E56">查看全部<br>'+b.items.length+' 套</span></div>';t.html='<div class="v4scroll">'+cards+'</div>'+(t.relax?'<div class="muted" style="font-size:10.5px;margin-top:4px"><i class="ti ti-arrows-diff"></i> 按你的选择：'+esc(t.relax.label)+'（卡片与地图虚线为扩展部分）</div>':'');if(!t.relax&&b.strict<3)t.relaxOpts=relaxOptions(p,{},null);}
       var cl=condLayers(p,t.relax);var polys=regionPolys(p).concat(cl.polys);if(t.relax&&t.relax.kind==='region'){var rs=t.relax.opt.regionSet,kk;for(kk in rs){if(kk.indexOf('city:')===0)polys.push({pts:blob(cityCtr(kk.slice(5)),4.5,'cityx'+kk,20),dashed:true,fillOpacity:0.03,label:kk.slice(5)});if(kk.indexOf('nb:')===0&&!(regionSet(p)||{})[kk])polys.push({pts:blob(nbGeo(kk.slice(3)),1.2,'nbx'+kk,16),dashed:true,fillOpacity:0.04,label:kk.slice(3)});}}
@@ -1340,7 +1341,7 @@ return null;}
       rows=rows.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]),th=0,j;for(j=0;j<kw.length;j++)if(((n[3]||'')+nbTags(n[0],city).join(' ')).indexOf(kw[j])>=0)th++;var pr=p.priority?(nbFocusSort([n],p.priority).length?1:0):0;var ap=apprecTier(n[0],city);row._s=(cov===null?40:cov*0.6)+(/自然环境/.test(p.priority||'')&&/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨|渔村|小镇/.test((n[3]||'')+nbTags(n[0],city).join(' '))?70:0)+(bus&&hasRail(city)?12:0)+(kids&&sch>=8?10:0)+th*8+(p.apprec==='很看重'?ap.score*0.25:(p.apprec==='兼顾'?ap.score*0.05:0));row._cov=cov;row._ap=ap;row._city=city;return row;}).filter(function(r){return p.apprec!=='只要增值潜力高的'||r._ap.tier==='高';}).sort(function(a,b){return b._s-a._s;}).slice(0,4);
       if(!rows.length&&t.excludeNames){t.lead='这个范围内没有更多社区了。可以放宽通勤时间、换个目的地，或说说别的偏好。';t.pick=null;return;}
       if(!rows.length){t.lead='按「只要增值潜力高的」硬筛后没有社区了，要不要放到「很看重」？';t.extra.push({id:'ap',chips:[{label:'放到「很看重」',fn:function(){profile.apprec='很看重';pref();refreshTurn(t);}}]});return;}
-      var regTxt=(p.tNb||p.tZone||p.tCity||'').replace(/、/g,' / '),isoTxt=p.dest?('到 '+p.dest+' '+(p.mode||'')+' ≤'+(t.widenTime||p.time||'45分钟')+' 的等时圈'+(t.widenTime?'（已从 '+(p.time||'45分钟')+' 放宽）':'')):p.school?(p.school+' '+V4.catchWord+'范围'):p.district?(p.district+' 商圈周边'):'';var scope=regTxt?(regTxt+(isoTxt?(lastIsoMiss?('（'+isoTxt+'内没有 '+regTxt+' 的社区，先按区域本身排）'):('，且在'+isoTxt+'内')):'')):(isoTxt?(isoTxt+'内'):'你提到的区域');
+      var regTxt=[p.tNb,p.tZone,p.tCity].filter(Boolean).join('、').replace(/、/g,' / '),isoTxt=p.dest?('到 '+p.dest+' '+(p.mode||'')+' ≤'+(t.widenTime||p.time||'45分钟')+' 的等时圈'+(t.widenTime?'（已从 '+(p.time||'45分钟')+' 放宽）':'')):p.school?(p.school+' '+V4.catchWord+'范围'):p.district?(p.district+' 商圈周边'):'';var scope=regTxt?(regTxt+(isoTxt?(lastIsoMiss?('（'+isoTxt+'内没有 '+regTxt+' 的社区，先按区域本身排）'):('，且在'+isoTxt+'内')):'')):(isoTxt?(isoTxt+'内'):'你提到的区域');
       t.lead='在 '+scope+'，'+(hasBud?'按预算覆盖率（该社区该房型在售中价格在你预算内的占比）':'先按供给')+(p.tone?('、「'+p.tone+'」调性'):'')+(p.priority?('、你看重的「'+p.priority+'」'):'')+(p.apprec&&p.apprec!=='兼顾'?('、增值偏好「'+p.apprec+'」'):'')+' 排序，这几个社区最合适（地图上画出了范围与条件）：';
       covOn=true;var cards='';rows.forEach(function(r,i){var c=ncard(r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7]).replace('data-kind="nb"','data-kind="nb" data-idx="'+(i+1)+'"');if(p.apprec)c=c.replace(/<\/div><\/div>$/,apprecHTML(r[0],r._city)+'</div></div>');cards+=c;});covOn=false;t.html='<div class="v4scroll">'+cards+'</div>';
       var cl=condLayers(p,null);t.layers={pins:[],polys:rows.map(function(r){return {pts:blob(nbGeo(r[0],r._city),1.1,'nb'+r[0],16),label:r[0],fillOpacity:0.1};}).concat(cl.polys),circles:cl.circles,points:cl.points.concat(rows.map(function(r,i){return {geo:nbGeo(r[0],r._city),icon:'ti-map-pin',label:(i+1)+''};}))};
@@ -1368,8 +1369,8 @@ return null;}
   var lastIsoMiss=false;
   function nbCandidates(p){var reg=[],iso=[],rows=[];lastIsoMiss=false;
     if(p.tNb)p.tNb.split('、').forEach(function(n){var r=rowFor(n);if(r)reg.push(r);});
-    if(!reg.length&&p.tZone)p.tZone.split('、').forEach(function(z){(ZONES[z]?ZONES[z].nbs:[]).forEach(function(q){var r=rowFor(q[0],q[1]);if(r)reg.push(r);});});
-    if(!reg.length&&p.tCity)p.tCity.split('、').forEach(function(c){(cityData(c).nbs||[]).forEach(function(n){reg.push(n);});});
+    if(p.tZone)p.tZone.split('、').forEach(function(z){(ZONES[z]?ZONES[z].nbs:[]).forEach(function(q){var r=rowFor(q[0],q[1]);if(r)reg.push(r);});});
+    if(p.tCity)p.tCity.split('、').forEach(function(c){(cityData(c).nbs||[]).forEach(function(n){reg.push(n);});});
     if(p.dest)iso=isoNbs(p);else if(p.school){schoolNbs(p.school).forEach(function(n){var r=rowFor(n);if(r)iso.push(r);});}else if(p.district){nbsNearDistrict(p.district.split('、')[0],distCity(p.district.split('、')[0])).forEach(function(n){var r=rowFor(n);if(r)iso.push(r);});}
     if(reg.length&&iso.length){var names={};iso.forEach(function(n){names[n[0]]=1;});var both=reg.filter(function(r){return names[r[0]];});if(both.length)rows=both;else{rows=reg;lastIsoMiss=true;}}
     else rows=reg.length?reg:iso;
@@ -1840,6 +1841,123 @@ return null;}
   snipTxt=function(s){return (''+(s||'')).replace(/<[^>]*>/g,'');};
   window.__v4.send=function(t){v4Send(t);};
   window.__v5={pre:preIntent,cmp:parseCompare,know:KNOW,hist:HIST,refs:parseRefs,narr:isNarrative,corr:function(){return corr;},fb:function(){return fbReasons;}};
+
+  /* ===================== p6：关注区域（档案，长期）与 本次范围（会话焦点）分离 =====================
+     本次范围 = profile.tCity / tZone / tNb / district / school（检索与地图只看它，每次新问题或新选择会切换）
+     关注区域 = profile.watch（分支数组，只增不减，除非用户明确说不要；每日推荐与「没指定区域的找房」按它取并集） */
+  var RKEYS=['tCity','tZone','tNb','district','school'],BK={tZone:'zones',tNb:'nbs',district:'districts',school:'schools'},regionOp='',watchFull=false;
+  (function(){var L={tCity:'本次看·城市',tZone:'本次看·生活圈',tNb:'本次看·社区',district:'本次看·商圈'};FIELDS.forEach(function(f){if(L[f.k])f.label=L[f.k];});})();
+  function watchList(){if(!Array.isArray(profile.watch))profile.watch=[];return profile.watch;}
+  function branchCity(kind,name){if(kind==='tCity')return name;if(kind==='tZone')return (typeof ZONES!=='undefined'&&ZONES[name]&&ZONES[name].prim)||name;if(kind==='district')return distCity(name)||name;if(kind==='school')return schoolInfo(name).city||schoolCityGuess(name);return cityOf(name);}
+  function findBranch(city){var w=watchList(),i;for(i=0;i<w.length;i++)if(w[i].city===city)return w[i];return null;}
+  function branchFine(b){return b.zones.length+b.nbs.length+b.districts.length+b.schools.length;}
+  function watchHas(kind,name){var b=findBranch(branchCity(kind,name));if(!b)return false;if(kind==='tCity')return true;return !branchFine(b)||b[BK[kind]].indexOf(name)>=0;}
+  /* explicit = 用户明确表达（说了意向 / 点了选定）：允许把整城分支收窄到社区，或把收窄的分支放回整城 */
+  function watchAdd(kind,name,explicit){if(!name)return false;var city=branchCity(kind,name),b=findBranch(city),w=watchList();
+    if(!b){if(w.length>=5){watchFull=true;return false;}b={city:city,zones:[],nbs:[],districts:[],schools:[]};w.push(b);if(kind!=='tCity')b[BK[kind]].push(name);return true;}
+    if(kind==='tCity'){if(explicit&&branchFine(b)){b.zones=[];b.nbs=[];b.districts=[];b.schools=[];return true;}return false;}
+    var arr=b[BK[kind]];if(arr.indexOf(name)>=0)return false;if(!branchFine(b)&&!explicit)return false;arr.push(name);return true;}
+  function watchRemove(name){var w=watchList(),i,ch=false;for(i=w.length-1;i>=0;i--){var b=w[i];if(b.city===name){w.splice(i,1);ch=true;continue;}['zones','nbs','districts','schools'].forEach(function(k){var ix=b[k].indexOf(name);if(ix>=0){b[k].splice(ix,1);ch=true;}});}return ch;}
+  function branchLabel(b){var fine=b.nbs.concat(b.zones).concat(b.districts.map(function(d){return d+' 商圈';})).concat(b.schools);return fine.length?(b.city+' · '+fine.join('、')):b.city;}
+  function watchLabels(){return watchList().map(branchLabel);}
+  function branchItems(b){var it=[];b.nbs.forEach(function(n){it.push({k:'tNb',n:n});});b.zones.forEach(function(n){it.push({k:'tZone',n:n});});b.districts.forEach(function(n){it.push({k:'district',n:n});});b.schools.slice(0,1).forEach(function(n){it.push({k:'school',n:n});});if(!it.length)it.push({k:'tCity',n:b.city});return it;}
+  function scopeNames(){var out=[];RKEYS.forEach(function(k){(profile[k]||'').split('、').filter(Boolean).forEach(function(n){out.push({k:k,n:n});});});return out;}
+  function scopeLabel(){var p=profile;return [p.tNb,p.tZone,p.tCity,p.district?(p.district.replace(/、/g,' 商圈、')+' 商圈'):'',p.school].filter(Boolean).join('、');}
+  /* 本次范围 = items：同一城市里既有整城又有更细的，只留更细的 */
+  function setFocus(items){items=items.filter(function(r){return !(r.k==='tCity'&&items.some(function(x){return x.k!=='tCity'&&branchCity(x.k,x.n)===r.n;}));});RKEYS.forEach(function(k){var ns=[];items.forEach(function(r){if(r.k===k&&ns.indexOf(r.n)<0)ns.push(r.n);});profile[k]=k==='school'?(ns[0]||''):ns.join('、');});}
+  function watchItems(){var it=[];watchList().forEach(function(b){it=it.concat(branchItems(b));});return it;}
+  function focusWatchAll(){setFocus(watchItems());}
+  function otherBranches(){var cities={};scopeNames().forEach(function(r){cities[branchCity(r.k,r.n)]=1;});return watchList().filter(function(b){return !cities[b.city];});}
+  function withWatchScope(fn){if(!watchList().length)return fn();var sv={};RKEYS.forEach(function(k){sv[k]=profile[k];});focusWatchAll();try{return fn();}finally{RKEYS.forEach(function(k){profile[k]=sv[k];});}}
+
+  /* ---------- 快照 / 撤销 / 变更回显带上关注区域 ---------- */
+  var _snap6=snap;snap=function(p){var o=_snap6(p);o._watch=JSON.stringify(Array.isArray(p.watch)?p.watch:[]);return o;};
+  var _restore6=restore;restore=function(p,s){_restore6(p,s);try{p.watch=JSON.parse(s._watch||'[]');}catch(e){p.watch=[];}};
+  var _diffChips6=diffChips;diffChips=function(before,p){var out=_diffChips6(before,p),wl=watchLabels().join('；'),bl='';try{bl=JSON.parse(before._watch||'[]').map(branchLabel).join('；');}catch(e){}if(wl!==bl)out.push({t:'关注区域：'+(wl||'（空）'),k:'_watch'});return out;};
+
+  /* ---------- 规则抽取：这句话提到的区域 → 判 关注 / 只是看看 / 追加 / 替换 / 移除 ---------- */
+  function isLook(s){return /^\s*(看|看看|看下|看一下|查|查下|了解|瞧瞧)|有什么|有啥|有哪些|怎么样|如何|咋样|均价|多少钱|好不好|值得.*吗|适合.*吗/.test(s)&&!/想在|想买|想住|打算|准备在|考虑在|要在|定在|就在|决定/.test(s);}
+  function regNames(src){var out=[];RKEYS.forEach(function(k){(src[k]||'').split('、').filter(Boolean).forEach(function(n){out.push({k:k,n:n});});});return out;}
+  function regHas(a,r){return a.some(function(x){return x.k===r.k&&x.n===r.n;});}
+  var _extract6=extract;extract=function(t){if(!t)return;if(extracting==='x'){_extract6(t);return;}
+    regionOp='';watchFull=false;var before=regNames(profile),t2=t,preRemoved='';
+    /* 「不要 X 了」而 X 只在关注区域里（不在本次范围）：从关注区域移除，不进「排除区域」 */
+    var mD=t.match(/(?:不要|去掉|删掉|删除|不考虑|不看)\s*([A-Za-z][A-Za-z .\/'-]{2,30}|[一-龥]{2,8}?)\s*了/);
+    if(mD){var rD=findRegion(mD[1])||findRegion(normAlias(mD[1]));if(rD&&!before.some(function(r){return r.n===rD;})&&watchRemove(rD)){preRemoved=rD;t2=t.replace(mD[0],'');if(!t2.trim())t2=' ';}}
+    _extract6(t2);
+    if(preRemoved){corr={type:'delete',field:'region',from:preRemoved,to:''};regionOp='remove';}
+    var R=scopeNames().filter(function(r){return !regHas(before,r);});
+    if(corr.type==='replace'){if(RKEYS.indexOf(corr.field)>=0){if(corr.from)watchRemove(corr.from);if(corr.to)watchAdd(corr.field,corr.to,true);regionOp='replace';}}
+    else if(corr.type==='delete'){if(corr.from&&watchRemove(corr.from))regionOp='remove';}
+    else if(!corr.type&&R.length){var joinOld=/也|还有|还想|再加|加上|另外|同时/.test(t),look=isLook(t)&&watchList().length>0;
+      setFocus(joinOld?before.concat(R):R);
+      if(look)regionOp='look';else{R.forEach(function(r){watchAdd(r.k,r.n,true);});regionOp=joinOld?'add':'watch';}}
+    lastNeg.forEach(function(a){if(a.dim==='排除区域'&&watchRemove(a.value))regionOp=regionOp||'remove';});
+    if(regionOp)pref();};
+
+  /* ---------- 模型抽取：区域字段只写这句话提到的区域，region_op 说明与已有区域的关系 ---------- */
+  if(typeof MX_SCHEMA!=='undefined'){MX_SCHEMA.properties.region_op={type:'string',enum:['none','watch','look','add','replace','remove'],description:'这句话提到的区域与档案里已有区域的关系'};if(MX_SCHEMA.required.indexOf('region_op')<0)MX_SCHEMA.required.push('region_op');}
+  if(typeof mxSystem==='function'){var _mxSystem6=mxSystem;mxSystem=function(){return _mxSystem6()+'\n14. 区域字段（tCity / tZone / tNb / district / school）只写这句话里提到的区域，不要带上档案里已有的旧区域（这一条优先于规则 3 的拼接和规则 4 的「去掉后给完整值」）。用 region_op 说明关系：watch = 表达了明确意向（想在 X 买 / 带预算房型等条件在 X 找房 / 就看 X）；look = 只是看看或问问（看 X 的社区 / X 有什么 / X 怎么样），不代表放弃之前的区域；add = 在原有基础上再加（也看看 X / X 也可以 / 还有 X）；replace = 纠错替换（不是 A 是 B / 我说的是 B），区域字段写 B；remove = 不要某个区域了（不要 X 了），此时区域字段里写要去掉的区域名；none = 这句话没提区域。「X 不考虑 / 别推 X」这种排除仍然进 avoid 的「排除区域」。';};}
+  if(typeof mxApply==='function'){var _mxApply6=mxApply;mxApply=function(res,t){regionOp='';watchFull=false;var before=regNames(profile),set=(res&&res.set)||{},op=(res&&res.region_op)||'';
+      var setKeys=RKEYS.filter(function(k){return set[k]!==undefined&&(''+set[k]).trim();});
+      _mxApply6(res,t);
+      var names=[];setKeys.forEach(function(k){(profile[k]||'').split('、').filter(Boolean).forEach(function(n){names.push({k:k,n:n});});});
+      var said=findRegionsAll(normAlias(t||'')).map(function(r){return r.name;});
+      if(op==='remove'){var rm=said.length?said:names.map(function(r){return r.n;});
+        if(rm.length){setFocus(before.filter(function(r){return rm.indexOf(r.n)<0;}));rm.forEach(function(n){watchRemove(n);});regionOp='remove';}}
+      else if(names.length){if(!op||op==='none')op='watch';if(op==='look'&&!watchList().length)op='watch';
+        if(op==='add'){setFocus(before.concat(names.filter(function(r){return !regHas(before,r);})));names.forEach(function(r){watchAdd(r.k,r.n,true);});}
+        else if(op==='replace'){var oldSaid=before.filter(function(r){return !regHas(names,r)&&said.indexOf(r.n)>=0;}),gone=oldSaid.length?oldSaid:before.filter(function(r){return !regHas(names,r);});
+          gone.forEach(function(r){watchRemove(r.n);});setFocus(before.filter(function(r){return !regHas(gone,r)&&!regHas(names,r);}).concat(names));names.forEach(function(r){watchAdd(r.k,r.n,true);});}
+        else{setFocus(names);if(op!=='look')names.forEach(function(r){watchAdd(r.k,r.n,true);});}
+        regionOp=op;}
+      ((res&&res.avoid)||[]).forEach(function(a){if(a&&a.dim==='排除区域'&&watchRemove(a.value))regionOp=regionOp||'remove';});
+      if(regionOp)pref();};}
+
+  /* ---------- 选定块 / 比较里的「选 X」：切本次范围 + 加入关注区域，不再清空别的分支 ---------- */
+  confirmPick=function(t){var sel=t.pickSel||[];if(!sel.length){addAI('先点一个'+t.pick.noun+'，或点「换一批」。');return;}var cfg=PICK_CFG[t.pick.kind],before=snap(profile);lockPick(t);var sentence=cfg.verb.replace('{n}',sel.join('、'));addUser(sentence);
+    setFocus(sel.map(function(n){return {k:cfg.slot,n:n};}));sel.forEach(function(n){watchAdd(cfg.slot,n,true);});markSrc([cfg.slot],'追问点选');pref();
+    var chips=diffChips(before,profile);if(chips.length)showUndo(before,chips);
+    var tn=newTurn();tn.kind=cfg.next;tn.text=sentence;tn.newKeys=chips.filter(function(c){return c.k;}).map(function(c){return c.k;});typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});};
+  chooseCmp=function(name,kind,next){var before=snap(profile);if(RKEYS.indexOf(kind)>=0){setFocus([{k:kind,n:name}]);watchAdd(kind,name,true);}else profile[kind]=name;markSrc([kind],'追问点选');pref();var ch=diffChips(before,profile);if(ch.length)showUndo(before,ch);var tn=newTurn();tn.kind=next;tn.text='看 '+name;tn.newKeys=ch.filter(function(c){return c.k;}).map(function(c){return c.k;});typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});};
+
+  /* ---------- AI 理解为：区域分两项显示 本次看 / 关注区域 ---------- */
+  var _condChips6=condChips;condChips=function(kind,pending,t){var out=_condChips6(kind,pending,t);if(!out.length)return out;var nk=(t&&t.newKeys)||[],pre=/^(本次看·城市|本次看·生活圈|本次看·社区|本次看·商圈|目标学校)：/;out=out.filter(function(c){return !pre.test(c.t);});
+    var ins=[],sl=scopeLabel(),wl=watchLabels();if(sl)ins.push({t:'本次看：'+sl,cls:RKEYS.some(function(k){return nk.indexOf(k)>=0;})?'new':''});else if(t&&t.kind==='listing'&&t.allRegion)ins.push({t:'本次看：全'+V4.region,cls:'soft'});
+    if(wl.length)ins.push({t:'关注区域：'+wl.join('；'),cls:nk.indexOf('_watch')>=0?'new':''});
+    var at=0;while(out[at]&&/^(模型判意图|这句没抽到新条件)/.test(out[at].t))at++;Array.prototype.splice.apply(out,[at,0].concat(ins));return out;};
+
+  /* ---------- 结果卡下：加入关注 / 回到 X / 关注区域一起看 / 对比 ---------- */
+  function refocus(items,say,kind){var before=snap(profile);setFocus(items);pref();addUser(say);var ch=diffChips(before,profile);var tn=newTurn();tn.kind=kind;tn.text=say;tn.newKeys=ch.filter(function(c){return c.k;}).map(function(c){return c.k;});typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
+  function addWatchRow(t){var chips=[],sc=scopeNames(),others=otherBranches(),kind=t.kind,notIn=sc.filter(function(r){return !watchHas(r.k,r.n);});
+    if(notIn.length)chips.push({label:'把 '+notIn.map(function(r){return r.n;}).join('、')+' 加入关注区域',icon:'ti-star',fn:function(){watchFull=false;notIn.forEach(function(r){watchAdd(r.k,r.n,true);});pref();addAI(watchFull?'关注区域最多 5 个，先在档案里去掉一个再加。':('已加入关注区域：'+watchLabels().join('；')+'。每日推荐和没指定区域的找房会把这些区域一起看。'));}});
+    others.slice(0,2).forEach(function(b){chips.push({label:'回到 '+branchLabel(b),icon:'ti-arrow-back-up',fn:function(){refocus(branchItems(b),'回到 '+branchLabel(b),kind);}});});
+    if(others.length&&sc.length)chips.push({label:'关注区域一起看',icon:'ti-stack-2',fn:function(){var it=watchItems();sc.forEach(function(r){if(!it.some(function(x){return x.k===r.k&&x.n===r.n;}))it.push(r);});refocus(it,'关注区域一起看',kind);}});
+    if(others.length===1&&sc.length===1){var o=branchItems(others[0])[0];chips.push({label:'对比 '+sc[0].n+' 和 '+o.n,icon:'ti-arrows-left-right',fn:function(){v4Send(sc[0].n+' 和 '+o.n+' 哪个更适合我');}});}
+    if(chips.length)t.extra.push({id:'wr'+t.id,chips:chips});}
+  var _buildTurn6=buildTurn;buildTurn=function(t){var k=t.kind;
+    /* 没指定区域：沿用本次范围；本次范围为空则取全部关注区域；都为空才按全域 */
+    if(k==='listing'||k==='nb'){if(!scopeNames().length&&!profile.dest&&watchList().length){focusWatchAll();t.fromWatch=true;}else setFocus(scopeNames());}
+    _buildTurn6(t);
+    if(watchFull){t.extra.push({id:'wf'+t.id,text:'关注区域最多 5 个，这次没加进去；在档案里去掉一个再加。'});watchFull=false;}
+    if((k==='listing'||k==='nb')&&t.html&&!(t.asks&&t.asks.length))addWatchRow(t);};
+
+  /* ---------- 正向反馈带入关注区域 ---------- */
+  var _fbExtra6=fbExtra;fbExtra=function(t){var x=_fbExtra6(t),ok=x.chips[0].fn;x.chips[0].fn=function(){var sc=scopeNames().filter(function(r){return !watchHas(r.k,r.n);});if(sc.length&&(t.kind==='listing'||t.kind==='nb')){sc.forEach(function(r){watchAdd(r.k,r.n,true);});pref();addAI('已把 '+sc.map(function(r){return r.n;}).join('、')+' 加入关注区域。');}ok();};return x;};
+  var _likeListing6=likeListing;likeListing=function(l){if(l)watchAdd('tCity',l.city,false);_likeListing6(l);};
+
+  /* ---------- 每日推荐 / 资格 / 经纪 Brief 按关注区域 ---------- */
+  var _dailyEligible6=dailyEligible;dailyEligible=function(){return withWatchScope(_dailyEligible6);};
+  var _dailyMiss6=dailyMiss;dailyMiss=function(){return withWatchScope(_dailyMiss6);};
+  var _simulateDaily6=simulateDaily;simulateDaily=function(){return withWatchScope(_simulateDaily6);};
+  var _briefBlocks6=briefBlocks;briefBlocks=function(){var B=_briefBlocks6(),wl=watchLabels();if(wl.length){var f=false;B.forEach(function(b){if(b[0]==='目标区域'){b[1]=wl.join('；');f=true;}});if(!f)B.splice(Math.min(1,B.length),0,['目标区域',wl.join('；')]);}return B;};
+
+  /* ---------- 档案页：关注区域（每个分支可删） ---------- */
+  var _profilePage6=profilePage;profilePage=function(){var h=_profilePage6(),mark='>目标区域与通勤</div>',w=watchList();
+    var card='<div class="cc"><div style="font-size:11.5px;color:var(--color-text-secondary);margin-bottom:7px">关注区域 · 只增不减，说「不要 X 了」或点 × 才移除；每日推荐与没指定区域的找房按这些区域（最多 5 个）</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+(w.length?w.map(function(b,i){return '<span class="tag" style="background:#E1F5EE;color:#0F6E56;padding:4px 8px;display:inline-flex;align-items:center;gap:4px">'+esc(branchLabel(b))+'<i class="ti ti-x" data-wdel="'+i+'" style="cursor:pointer;font-size:11px"></i></span>';}).join(''):'<span class="muted" style="font-size:12px">—（说「想在 X 买」、在选定块里点确定、或对结果点满意，会记到这里）</span>')+'</div></div>';
+    return h.indexOf(mark)>=0?h.replace(mark,mark+card):h;};
+  var _wirePage6=wirePage;wirePage=function(){_wirePage6();var n=detail.querySelectorAll('[data-wdel]'),i;for(i=0;i<n.length;i++)(function(el){el.onclick=function(e){e.stopPropagation();watchList().splice(+el.getAttribute('data-wdel'),1);pref();replacePage(profilePage());};})(n[i]);};
+  window.__v6={watch:watchList,labels:watchLabels,scope:scopeNames,op:function(){return regionOp;},add:watchAdd,remove:watchRemove};
 
 })();
 </script>
