@@ -203,6 +203,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1348,7 +1349,7 @@ return null;}
       return;}
     if(k==='nb'){var rows=nbCandidates(p);if(t.excludeNames&&p.dest){var q=clone(p);q.time=/30/.test(p.time||'')?'45分钟':'60分钟';t.widenTime=q.time;var seen={};rows.forEach(function(r){seen[r[0]]=1;});isoNbs(q).forEach(function(r){if(!seen[r[0]]){seen[r[0]]=1;rows.push(r);}});}var hasBud=!!budgetRange(p.budget),kw=TONEKW[p.tone]||[],bus=/公交|天车|地铁/.test(p.mode||''),kids=/孩|三代/.test(p.family||'');
       if(t.excludeNames)rows=rows.filter(function(n){return t.excludeNames.indexOf(n[0])<0;});
-      rows=rows.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]),th=0,j;for(j=0;j<kw.length;j++)if(((n[3]||'')+nbTags(n[0],city).join(' ')).indexOf(kw[j])>=0)th++;var pr=p.priority?(nbFocusSort([n],p.priority).length?1:0):0;var ap=apprecTier(n[0],city);row._s=(cov===null?40:cov*0.6)+(/自然环境/.test(p.priority||'')&&/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨|渔村|小镇/.test((n[3]||'')+nbTags(n[0],city).join(' '))?70:0)+(bus&&hasRail(city)?12:0)+(kids&&sch>=8?10:0)+th*8+(p.apprec==='很看重'?ap.score*0.25:(p.apprec==='兼顾'?ap.score*0.05:0));row._cov=cov;row._ap=ap;row._city=city;return row;}).filter(function(r){return p.apprec!=='只要增值潜力高的'||r._ap.tier==='高';}).sort(function(a,b){return b._s-a._s;}).slice(0,4);
+      rows=rows.map(function(n){var row=n.slice(),city=subCity(n[1]),cov=nbCoverage(n[0],city),sch=nbSchool(n[0]),th=0,j;for(j=0;j<kw.length;j++)if(((n[3]||'')+nbTags(n[0],city).join(' ')).indexOf(kw[j])>=0)th++;var pr=p.priority?(nbFocusSort([n],p.priority).length?1:0):0;var ap=apprecTier(n[0],city);row._s=(cov===null?40:cov*0.6)+(/自然环境/.test(p.priority||'')&&/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨|渔村|小镇/.test((n[3]||'')+nbTags(n[0],city).join(' '))?70*TB('priority'):0)+pr*15*TB('priority')+(bus&&hasRail(city)?12*TB('mode','nearTransit','dest'):0)+(kids&&sch>=8?10*TB('family','kids'):0)+th*8*TB('tone','vibe')+(p.apprec==='很看重'?ap.score*0.25:(p.apprec==='兼顾'?ap.score*0.05:0))*TB('apprec');row._cov=cov;row._ap=ap;row._city=city;return row;}).filter(function(r){return p.apprec!=='只要增值潜力高的'||r._ap.tier==='高';});rows=hardPool(rows,t).sort(function(a,b){return b._s-a._s;}).slice(0,4);
       if(!rows.length&&t.excludeNames){t.lead='这个范围内没有更多社区了。可以放宽通勤时间、换个目的地，或说说别的偏好。';t.pick=null;return;}
       if(!rows.length){t.lead='按「只要增值潜力高的」硬筛后没有社区了，要不要放到「很看重」？';t.extra.push({id:'ap',chips:[{label:'放到「很看重」',fn:function(){profile.apprec='很看重';pref();refreshTurn(t);}}]});return;}
       var regTxt=[p.tNb,p.tZone,p.tCity].filter(Boolean).join('、').replace(/、/g,' / '),isoTxt=p.dest?('到 '+p.dest+' '+(p.mode||'')+' ≤'+(t.widenTime||p.time||'45分钟')+' 的等时圈'+(t.widenTime?'（已从 '+(p.time||'45分钟')+' 放宽）':'')):p.school?(p.school+' '+V4.catchWord+'范围'):p.district?(p.district+' 商圈周边'):'';var scope=regTxt?(regTxt+(isoTxt?(lastIsoMiss?('（'+isoTxt+'内没有 '+regTxt+' 的社区，先按区域本身排）'):('，且在'+isoTxt+'内')):'')):(isoTxt?(isoTxt+'内'):'你提到的区域');
@@ -1357,7 +1358,7 @@ return null;}
       var cl=condLayers(p,null);t.layers={pins:[],polys:rows.map(function(r){return {pts:blob(nbGeo(r[0],r._city),1.1,'nb'+r[0],16),label:r[0],fillOpacity:0.1};}).concat(cl.polys),circles:cl.circles,points:cl.points.concat(rows.map(function(r,i){return {geo:nbGeo(r[0],r._city),icon:'ti-map-pin',label:(i+1)+''};}))};
       t.asks=t.skipped?[]:firstMissing(['htype','budget']);if(t.asks.length){t.html='';t.lead='';t.layers=null;t.extra=[];t.askFirst=true;t.askHead='先补上房型和预算，我确认各社区有对应的房源供应后再推社区：';t.pick=null;}else{t.askFirst=false;t.pick={kind:'nb',noun:'社区',names:rows.map(function(r){return r[0];})};}return;}
     if(k==='zone'||k==='city'){var pr=p.priority||'',tone=p.tone,bus2=/公交|天车|地铁/.test(p.mode||''),drive=/开车/.test(p.mode||''),fam=/孩|三代/.test(p.family||''),single=/单身|情侣|夫妻/.test(p.family||'');
-      var useZone=k==='zone'&&typeof ZONES!=='undefined'&&Object.keys(ZONES).length>0;var pf=A_pools(useZone?P2ZONES:P2CITIES,pr);var scored=pf.order.map(function(n){var s=pf.score[n];if(tone&&((useZone?TONE_ZONE:TONE_CITY)[tone]||[]).indexOf(n)>=0)s+=3;var rail=useZone?(ZONES[n]&&ZONES[n].rail):hasRail(n);if(bus2&&rail)s+=2;if(drive&&!rail)s+=1;if(fam&&(useZone?FAMILY_ZONE:FAMILY_CITY).indexOf(n)>=0)s+=1;if(single&&(useZone?CORE_ZONE:CORE_CITY).indexOf(n)>=0)s+=1;if(p.apprec&&p.apprec!=='兼顾'){var c0=useZone?(ZONES[n]?ZONES[n].prim:''):n,ap=apprecTier(n,c0);if(p.apprec==='很看重')s+=ap.score*0.08;if(p.apprec==='只要增值潜力高的'&&ap.tier!=='高')s-=50;}return {n:n,s:s};}).filter(function(o){return useZone?!!ZONES[o.n]:!!CITYCARD[o.n];}).sort(function(a,b){return b.s-a.s;});if(t.excludeNames)scored=scored.filter(function(o){return t.excludeNames.indexOf(o.n)<0;});scored=scored.slice(0,3);
+      var useZone=k==='zone'&&typeof ZONES!=='undefined'&&Object.keys(ZONES).length>0;var pf=A_pools(useZone?P2ZONES:P2CITIES,pr);var scored=pf.order.map(function(n){var s=pf.score[n]*TB('priority');if(tone&&((useZone?TONE_ZONE:TONE_CITY)[tone]||[]).indexOf(n)>=0)s+=3*TB('tone','vibe');var rail=useZone?(ZONES[n]&&ZONES[n].rail):hasRail(n);if(bus2&&rail)s+=2*TB('mode','nearTransit','dest');if(drive&&!rail)s+=1*TB('mode');if(fam&&(useZone?FAMILY_ZONE:FAMILY_CITY).indexOf(n)>=0)s+=1*TB('family','kids');if(single&&(useZone?CORE_ZONE:CORE_CITY).indexOf(n)>=0)s+=1;if(p.apprec&&p.apprec!=='兼顾'){var c0=useZone?(ZONES[n]?ZONES[n].prim:''):n,ap=apprecTier(n,c0);if(p.apprec==='很看重')s+=ap.score*0.08;if(p.apprec==='只要增值潜力高的'&&ap.tier!=='高')s-=50;}return {n:n,s:s};}).filter(function(o){return (useZone?!!ZONES[o.n]:!!CITYCARD[o.n])&&!regExcluded(o.n);}).sort(function(a,b){return b.s-a.s;});if(t.excludeNames)scored=scored.filter(function(o){return t.excludeNames.indexOf(o.n)<0;});scored=scored.slice(0,3);
       if(t.excludeNames)scored=scored.filter(function(o){return t.excludeNames.indexOf(o.n)<0;});var names=scored.map(function(o){return o.n;});t.pick={kind:useZone?'zone':'city',noun:useZone?'生活圈':'城市',names:names};t.lead=(useZone?'按生活圈维度':'按城市维度')+(pr?('，先按你看重的「'+pr+'」圈候选池'):'')+(tone?('，再按「'+tone+'」调性'):'')+(fam?'、家庭阶段':'')+(p.apprec&&p.apprec!=='兼顾'?('、增值偏好「'+p.apprec+'」'):'')+' 排序，这三个最匹配（点开看详情，说「看 X 的社区」继续下钻）：';
       if(useZone){t.html='<div class="v4scroll">'+names.map(function(z,i){var c=zoneCard(z).replace('data-kind="zone"','data-kind="zone" data-idx="'+(i+1)+'"');if(p.apprec)c=c.replace(/<\/div><\/div>$/,apprecHTML(z,ZONES[z].prim)+'</div></div>');return c;}).join('')+'</div>';t.layers={pins:[],polys:names.map(function(z){var zz=ZONES[z],lat=0,lng=0;zz.nbs.forEach(function(q){var g=nbGeo(q[0],q[1]);lat+=g[0];lng+=g[1];});lat/=zz.nbs.length;lng/=zz.nbs.length;return {pts:blob([lat,lng],2.6,'zone'+z,18),label:z,fillOpacity:0.08};}),circles:[],points:[]};}
       else{t.html='<div class="v4scroll">'+names.map(function(c,i){var a=CITYCARD[c];return citycard(a[0],a[1],a[2],a[3],a[4],a[5]).replace('data-tap="'+a[0]+'"','data-tap="'+a[0]+'" data-kind="city" data-idx="'+(i+1)+'"').replace(/<\/div><\/div>$/,(p.apprec?apprecHTML(c,c):'')+'</div></div>');}).join('')+'</div>';t.layers={pins:[],polys:names.map(function(c){return {pts:blob(cityCtr(c),5,'city'+c,20),label:c,fillOpacity:0.07};}),circles:[],points:[]};}
@@ -1818,11 +1819,11 @@ return null;}
     if(/高性价比/.test(p.priority||'')&&med&&med<=(IS_TO?92:120))parts.push('价格低于'+V4.region+'中位');
     if((p.apprec&&p.apprec!=='兼顾')||/保值增值/.test(p.priority||'')){var ap=apprecTier(name,c);parts.push((ap.ev[0]||'').replace('同房型','')+(ap.tier!=='低'?('（增值档'+ap.tier+'）'):''));}
     if(br&&med&&med>br[1])parts.push('中位 $'+med+'万，略超预算');
-    var tg=useZone?((ZONES[name]&&ZONES[name].tags)||[]).slice(0,3):tags.split(/\s*·\s*/).filter(Boolean);tg.forEach(function(x){if(parts.length<2&&x&&parts.join('').indexOf(x)<0)parts.push(x);});
+    var tg=useZone?((ZONES[name]&&ZONES[name].tags)||[]).slice(0,3):tags.split(/\s*·\s*/).filter(Boolean);if(!whyNoFill)tg.forEach(function(x){if(parts.length<2&&x&&parts.join('').indexOf(x)<0)parts.push(x);});
     return name+'：'+parts.slice(0,3).join('、');}
   /* 导语：五类区域卡统一「为你挑选了这 N 个 X：A：理由、理由；B：…。点开卡片看详情。」不复述条件、不写排序方法 */
   var PICK_NOUN={zone:' 个生活圈',city:' 个城市',nb:' 个社区',school:' 所学校',district:' 个商圈'};
-  function whyFill(parts,list){(list||[]).forEach(function(x){x=(x||'').trim();if(parts.length<2&&x&&x!=='—'&&parts.join('').indexOf(x)<0)parts.push(x);});}
+  function whyFill(parts,list){if(whyNoFill)return;(list||[]).forEach(function(x){x=(x||'').trim();if(parts.length<2&&x&&x!=='—'&&parts.join('').indexOf(x)<0)parts.push(x);});}
   function whyNb(name,t){var p=profile,parts=[],city=nbCity(name)||'',nd=nbData(name,city),cov=nbCoverage(name,city),row=rowFor(name),rt=(row&&row[3])||'',nt=nbTags(name,city)||[],tags=rt+' '+nt.join(' '),br=budgetRange(p.budget),sch=nbSchool(name);
     if(p.dest&&!lastIsoMiss)parts.push('到 '+p.dest+' '+(t.widenTime||p.time||'45分钟')+'内');
     if(cov!==null&&cov>=40)parts.push('预算内房源占 '+cov+'%');else if(cov===null&&br&&nd.med<=br[1])parts.push('中位 $'+nd.med+'万在预算内');
@@ -2090,6 +2091,43 @@ return null;}
     if(t.llm==='pending'||t.llm==='fail')return;
     var mode=axMode(t);if(mode)axStart(t,mode);};
   window.__v7={call:axCall,system:axSystem,payload:axPayload,mode:axMode,pool:axPool,facts:axFacts};
+
+  /* ===================== p8：硬条件圈池、软条件排序、本轮条件优先 =====================
+     圈：区域层也先用硬条件（排除区域、该房型预算内有在售）把池子圈出来
+     排：软条件排序；用户这一句刚说的条件（turnKeys / turnCrit）权重 ×3，并在导语理由和「为你而选」里排最前 */
+  var turnKeys=[],turnCrit=[],turnWhy={},whyNoFill=false,inTurn=false;
+  function TB(){var i;for(i=0;i<arguments.length;i++)if(turnKeys.indexOf(arguments[i])>=0)return 3;return 1;}
+  function turnOnly(p){var q={avoid:[],avoidRaw:[]};turnKeys.forEach(function(k){if(p[k])q[k]=p[k];});return q;}
+  function regExcluded(name){var av=avoidList(profile),i;for(i=0;i<av.length;i++){var a=av[i];if(a.dim!=='排除区域')continue;if(a.value===name)return true;if(typeof ZONES!=='undefined'&&ZONES[name]&&ZONES[name].prim===a.value)return true;}return false;}
+  /* 社区层硬条件：不在「排除区域」里；有预算和房型时，该房型预算内要有在售（全都没有时不清空，交给导语说明） */
+  function hardPool(rows,t){rows=rows.filter(function(r){return !regExcluded(r[0])&&!regExcluded(r._city);});var ok=rows.filter(function(r){return r._cov===null||r._cov>0;});if(ok.length){t.noSupply=false;return ok;}t.noSupply=rows.length>0;return rows;}
+
+  /* 房源软排序：本轮条件对应的加分再加两倍，命中项排在前面 */
+  var _softScore8=softScore;softScore=function(p,l){var r=_softScore8(p,l);if(!inTurn||p!==profile||!turnKeys.length)return r;var r2=_softScore8(turnOnly(p),l),extra=r2.s-(l.days<=7?1:0),first=r2.hits.filter(function(h){return !/层$/.test(h);});
+    r.s=Math.round((r.s+2*extra)*100)/100;r.hits=first.concat(r.hits.filter(function(h){return first.indexOf(h)<0;}));return r;};
+
+  /* 导语里每个候选的理由：本轮条件对应的理由排最前 */
+  function whyParts(s){var i=s.indexOf('：');return i<0?[]:s.slice(i+1).split('、').filter(Boolean);}
+  function whyTurnFirst(fn){return function(name,a2){var full=fn(name,a2);if(!turnKeys.length)return full;var first=[],sv=profile;profile=turnOnly(sv);whyNoFill=true;try{first=whyParts(fn(name,a2));}catch(e){}finally{profile=sv;whyNoFill=false;}
+    if(!first.length)return full;var all=first.concat(whyParts(full).filter(function(x){return first.indexOf(x)<0;})).slice(0,3);return name+'：'+all.join('、');};}
+  pickWhy=whyTurnFirst(pickWhy);whyNb=whyTurnFirst(whyNb);whySchool=whyTurnFirst(whySchool);whyDistrict=whyTurnFirst(whyDistrict);
+
+  /* 详情页「为你而选」：先回应本轮条件，再说档案里的其他条件 */
+  var _fitFor8=fitFor;fitFor=function(name,city){var full=_fitFor8(name,city),head=[],pts=full.indexOf('· ')===0?full.slice(2).split('<br>· '):[];
+    if(turnCrit.length&&turnWhy[name])head.push('你这次最关心「'+esc(turnCrit.join('、'))+'」：'+esc(turnWhy[name]));
+    if(turnKeys.length&&pts.length){var sv=profile,part='';profile=turnOnly(sv);try{part=_fitFor8(name,city);}catch(e){}finally{profile=sv;}
+      if(part.indexOf('· ')===0){var keys=part.slice(2).split('<br>· ').map(function(x){return x.split('：')[0];}),a=[],b=[];pts.forEach(function(x){(keys.indexOf(x.split('：')[0])>=0?a:b).push(x);});pts=a.concat(b);}}
+    if(!head.length&&!pts.length)return full;return '· '+head.concat(pts).join('<br>· ');};
+
+  /* 模型兜底：把本轮条件单独交给模型，并要求优先回应 */
+  var _axPayload8=axPayload;axPayload=function(t,mode){var p=_axPayload8(t,mode),f={};(t.newKeys||[]).forEach(function(k){FIELDS.forEach(function(fd){if(fd.k===k&&profile[k])f[fd.label]=profile[k];});});p['本轮条件']={字段:f,评判标准:t.criteria||[]};return p;};
+  var _axSystem8=axSystem;axSystem=function(){return _axSystem8()+'\n9. 输入里的「本轮条件」是用户这句话刚提出的条件，优先级高于 profile 里已有的其他条件：挑选和结论先按它来；answer 的第一句先回应它；每个 pick 的 why 第一条必须回应它。';};
+  var _axApply8=axApply;axApply=function(t){_axApply8(t);if(t.llmMode==='recommend'&&t.llmRes){t.aiWhy={};(t.llmRes.picks||[]).forEach(function(x){if(x&&x.name)t.aiWhy[x.name]=(x.why||'').trim();});turnWhy=t.aiWhy;turnCrit=t.criteria||[];}};
+
+  var _buildTurn8=buildTurn;buildTurn=function(t){turnKeys=(t.newKeys||[]).filter(function(k){return k&&k.charAt(0)!=='_'&&RKEYS.indexOf(k)<0;});turnCrit=t.criteria||[];turnWhy=t.aiWhy||{};inTurn=true;try{_buildTurn8(t);}finally{inTurn=false;}
+    turnCrit=t.criteria||[];turnWhy=t.aiWhy||{};
+    if(t.kind==='nb'&&t.noSupply&&t.lead&&!(t.asks&&t.asks.length)&&t.lead.indexOf('暂时没有在售')<0)t.lead='这些社区预算内暂时没有在售的'+typeCN(profile.htype)+'，先按区域列出。'+t.lead;};
+  window.__v8={keys:function(){return turnKeys.slice();},crit:function(){return turnCrit.slice();}};
 
 })();
 </script>
