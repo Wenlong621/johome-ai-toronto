@@ -205,6 +205,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2130,7 +2131,10 @@ return null;}
     if(t.kind==='nb'&&t.noSupply&&t.lead&&!(t.asks&&t.asks.length)&&t.lead.indexOf('暂时没有在售')<0)t.lead='这些社区预算内暂时没有在售的'+typeCN(profile.htype)+'，先按区域列出。'+t.lead;};
   /* 被排除的区域不能成为「本次看」：这句话排除了 X，就把 X 从本次看里拿掉（原来在看别的区域则保持不变） */
   function dropExcluded(before,ex){if(!ex.length)return;if(scopeNames().some(function(r){return ex.indexOf(r.n)>=0;})||before.some(function(r){return ex.indexOf(r.n)>=0;})){setFocus(before.filter(function(r){return ex.indexOf(r.n)<0;}));}}
-  var _extract8=extract;extract=function(t){if(!t||extracting==='x'){_extract8(t);return;}var before=regNames(profile);_extract8(t);dropExcluded(before,lastNeg.filter(function(a){return a.dim==='排除区域';}).map(function(a){return a.value;}));};
+  var _extract8=extract;extract=function(t){if(!t||extracting==='x'){_extract8(t);return;}var before=regNames(profile),mX=t.match(/^\s*([A-Za-z][A-Za-z .\/'-]{2,30}|[一-龥]{2,8})\s*就?(?:不考虑|不要考虑|不看|别推|不想看)\s*[。.！!]?\s*$/);
+    /* 规则回退：「X 不考虑」与「不考虑 X」同样记为排除区域 */
+    if(mX&&(findRegion(mX[1])||findRegion(normAlias(mX[1]))))t='不考虑 '+mX[1].trim();
+    _extract8(t);dropExcluded(before,lastNeg.filter(function(a){return a.dim==='排除区域';}).map(function(a){return a.value;}));};
   var _mxApply8=mxApply;mxApply=function(res,t){var before=regNames(profile);_mxApply8(res,t);dropExcluded(before,((res&&res.avoid)||[]).filter(function(a){return a&&a.dim==='排除区域';}).map(function(a){return a.value;}));};
   window.__v8={keys:function(){return turnKeys.slice();},crit:function(){return turnCrit.slice();}};
 
