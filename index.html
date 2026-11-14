@@ -204,6 +204,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2127,6 +2128,10 @@ return null;}
   var _buildTurn8=buildTurn;buildTurn=function(t){turnKeys=(t.newKeys||[]).filter(function(k){return k&&k.charAt(0)!=='_'&&RKEYS.indexOf(k)<0;});turnCrit=t.criteria||[];turnWhy=t.aiWhy||{};inTurn=true;try{_buildTurn8(t);}finally{inTurn=false;}
     turnCrit=t.criteria||[];turnWhy=t.aiWhy||{};
     if(t.kind==='nb'&&t.noSupply&&t.lead&&!(t.asks&&t.asks.length)&&t.lead.indexOf('暂时没有在售')<0)t.lead='这些社区预算内暂时没有在售的'+typeCN(profile.htype)+'，先按区域列出。'+t.lead;};
+  /* 被排除的区域不能成为「本次看」：这句话排除了 X，就把 X 从本次看里拿掉（原来在看别的区域则保持不变） */
+  function dropExcluded(before,ex){if(!ex.length)return;if(scopeNames().some(function(r){return ex.indexOf(r.n)>=0;})||before.some(function(r){return ex.indexOf(r.n)>=0;})){setFocus(before.filter(function(r){return ex.indexOf(r.n)<0;}));}}
+  var _extract8=extract;extract=function(t){if(!t||extracting==='x'){_extract8(t);return;}var before=regNames(profile);_extract8(t);dropExcluded(before,lastNeg.filter(function(a){return a.dim==='排除区域';}).map(function(a){return a.value;}));};
+  var _mxApply8=mxApply;mxApply=function(res,t){var before=regNames(profile);_mxApply8(res,t);dropExcluded(before,((res&&res.avoid)||[]).filter(function(a){return a&&a.dim==='排除区域';}).map(function(a){return a.value;}));};
   window.__v8={keys:function(){return turnKeys.slice();},crit:function(){return turnCrit.slice();}};
 
 })();
