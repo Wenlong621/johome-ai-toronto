@@ -202,6 +202,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1997,6 +1998,98 @@ return null;}
   var _renderSummary6=renderSummary;renderSummary=function(){return withWatchDisplay(_renderSummary6);};
   var _wirePage6=wirePage;wirePage=function(){_wirePage6();var n=detail.querySelectorAll('[data-adel]'),i;for(i=0;i<n.length;i++)(function(el){var ky=el.getAttribute('data-akey')||'tNb';if(RKEYS.indexOf(ky)<0)return;el.onclick=function(e){e.stopPropagation();var a=watchList()[ky],ix=a.indexOf(el.getAttribute('data-adel'));if(ix>=0)a.splice(ix,1);pref();replacePage(profilePage());};})(n[i]);};
   window.__v6={watch:watchList,labels:watchLabels,scope:scopeNames,op:function(){return regionOp;},add:watchAdd,remove:watchRemove};
+
+  /* ===================== p7：模板答不了时由模型兜底 =====================
+     1) 地产相关但模板 / 数据覆盖不到的问题：模型基于喂给它的数据作答（open 意图，或句子自带的评判标准不在模板字段里）
+     2) 涉及推荐：模型只在候选池里挑卡并写理由，不编名字
+     3) 追问：模型在追问字典里选要问的项，规则的最低条件保底，一轮一个块
+     没有 key 时全部不生效，保持模板行为 */
+  var ASKABLE=['budget','htype','beds','kids','dest','time','mode','mustHave'],mxExtra=null,critByText={};
+  MX_KINDS.open=1;NEW_KINDS.open=1;NOEXTRACT.open=1;INTENT_CN.open='地产问答';
+  if(typeof MX_SCHEMA!=='undefined'){MX_SCHEMA.properties.intent.enum.push('open');
+    MX_SCHEMA.properties.criteria={type:'array',items:{type:'string'},description:'这句话里用户自己提出、但写不进任何档案字段的评判标准或关注点'};
+    MX_SCHEMA.properties.ask={type:'array',items:{type:'string',enum:ASKABLE},description:'给出有用结果之前必须先问用户的项，最多 2 项，默认空'};
+    MX_SCHEMA.required.push('criteria');MX_SCHEMA.required.push('ask');}
+  var _mxSystem7=mxSystem;mxSystem=function(){return _mxSystem7()+'\n15. criteria：这句话里用户自己提出的、无法写进任何档案字段的评判标准或关注点，逐条列成短语（如「热爱社交」「年轻人多」「华人配套」「夜生活」「适合养老」「遛狗方便」）。能写进字段的（预算、房型、学区、自然环境、通勤、调性等）不要重复列；没有就给空数组。'
+    +'\n16. intent 另有一类 open：与买房 / 找房 / 区域 / 房源 / 市场 / 居住有关，但不属于上面任何一类的问题（如「住公寓会不会很吵」「木结构房子在这边耐不耐用」「这边冬天取暖费高吗」）。属于税费、流程、材料的仍是 knowledge；与找房无关的仍是 offtopic。'
+    +'\n17. ask：为了给出有用的结果，必须先问用户的项，只能从 '+JSON.stringify(ASKABLE)+' 里选（budget 预算 / htype 房型 / beds 卧室数 / kids 孩子学段 / dest 通勤目的地 / time 可接受通勤 / mode 通勤方式 / mustHave 商圈必备店铺），最多 2 项。用户这句话或当前档案里已经有的不要问；能不问就不问，默认空数组；zone / city / market / knowledge / timing 以及闲聊类意图一律空数组。';};
+  var _mxApply7=mxApply;mxApply=function(res,t){mxExtra={criteria:((res&&res.criteria)||[]).filter(Boolean).slice(0,6),ask:((res&&res.ask)||[]).filter(function(f){return ASKABLE.indexOf(f)>=0;}).slice(0,2),ts:Date.now()};if(t&&mxExtra.criteria.length)critByText[t]=mxExtra.criteria;_mxApply7(res,t);};
+  var _newTurn7=newTurn;newTurn=function(){var t=_newTurn7();if(mxExtra&&Date.now()-mxExtra.ts<5000){t.criteria=mxExtra.criteria;t.mAsks=mxExtra.ask;}mxExtra=null;return t;};
+
+  /* ---------- 喂给模型的数据：只取库里有的字段 ---------- */
+  function axPoi(city){var sum={},n=0;allDistricts().forEach(function(d){if(d.city!==city)return;n++;var p=distPOI(d.name,d.city,d.line),k;for(k in p)sum[k]=(sum[k]||0)+p[k];});return n?{商圈数:n,店铺合计:sum}:null;}
+  function axCity(c){var a=CITYCARD[c]||[],tones=[],k;for(k in TONE_CITY)if(TONE_CITY[k].indexOf(c)>=0)tones.push(k);var o={name:c,标签:a[1]||'',简介:((CX[c]||{}).intro||'').slice(0,140),售出中位价:'$'+cityMed(c)+'万',近一年涨跌:cityStat(c,'gain'),学校:(CITY[c]&&CITY[c].school)||'',轨道:hasRail(c)?('有'+V4.rail):'无',调性:tones.join('、')},p=axPoi(c);if(p)o.商圈=p;return o;}
+  function axZone(z){var zz=ZONES[z]||{},sum=0,n=0;(zz.nbs||[]).forEach(function(q){sum+=nbData(q[0],q[1]).med;n++;});return {name:z,别名:zz.alias||'',所属城市:zz.prim||'',标签:(zz.tags||[]).join('、'),定位:zz.anchor||'',描述:(zz.desc||'').slice(0,90),轨道:zz.rail?('有'+V4.rail):'无',社区中位价:n?('$'+Math.round(sum/n)+'万'):''};}
+  function axNb(n){var c=nbCity(n)||'',d=nbData(n,c),row=rowFor(n),cov=nbCoverage(n,c),o={name:n,城市:c,标签:[(row&&row[3])||''].concat(nbTags(n,c)||[]).filter(Boolean).join('、'),售出中位价:'$'+d.med+'万',近一年涨跌:'+'+d.gain+'%',学区均分:nbSchool(n)||''};if(cov!==null)o.预算内房源占比=cov+'%';return o;}
+  function axFacts(name,kind){return kind==='tCity'?axCity(cityOf(name)||name):kind==='tZone'?axZone(name):axNb(name);}
+  function axPool(kind){if(kind==='nb')return nbCandidates(profile).slice(0,30).map(function(r){return axNb(r[0]);});if(kind==='zone')return Object.keys(ZONES).map(axZone);return Object.keys(CITYCARD).filter(function(c){return /^[A-Za-z]/.test(c);}).map(axCity);}
+
+  /* ---------- 第二次模型调用：基于数据作答 / 在候选池里挑 ---------- */
+  var AX_SCHEMA={type:'object',properties:{answer:{type:'string'},rows:{type:'array',items:{type:'object',properties:{label:{type:'string'},a:{type:'string'},b:{type:'string'}},required:['label','a','b'],additionalProperties:false}},picks:{type:'array',items:{type:'object',properties:{name:{type:'string'},why:{type:'string'}},required:['name','why'],additionalProperties:false}},nodata:{type:'boolean'}},required:['answer','rows','picks','nodata'],additionalProperties:false};
+  function axSystem(){return ['你是 Johome 找房 Agent（'+V4.region+'）的回答模块。用户问了一个与买房 / 找房有关的问题，现有模板答不了，由你基于输入里的 data 作答，输出 JSON。',
+    '规则：',
+    '1. 事实和数字只能来自 data，数字原样引用，不要凭记忆补 data 里没有的数字。data 没覆盖的方面可以给常识性的定性说明，但要点明「这一点没有数据」。',
+    '2. 直接回答用户的问题，围绕 criteria 里的评判标准来说：先给结论（哪个更贴合，或各自适合谁），再给 2–3 条依据。answer 不超过 120 个字，口语化中文，不用 markdown、不用列表符号。',
+    '3. 不预测房价和利率，不给个人投资建议，不给砍价数字，不对法律、贷款审批下确定性判断。',
+    '4. 不对族群下绝对结论（不说「最适合华人」「华人最多」），改说配套事实（中餐馆、亚洲超市的数量等）。不用「最安全」「最好」这类绝对说法。',
+    '5. mode=compare：rows 给 2–4 行与 criteria 最相关的对比项，label 是指标名，a / b 是 data.A / data.B 对应的值（原样取自 data）；picks 给空数组。',
+    '6. mode=recommend：从 data.pool 里挑 3–4 个最贴合 criteria 和档案的，name 必须与 pool 里的 name 完全一致；why 写 2 条理由，用「、」分隔，每条不超过 12 个字，依据来自 data；answer 用一句话直接回应用户的问题；rows 给空数组。',
+    '7. mode=open：只写 answer；rows、picks 给空数组。',
+    '8. data 完全不足以回答时 nodata=true，answer 里说明缺什么数据。'].join('\n');}
+  function axCall(payload){var body={model:MX.model,max_tokens:1200,system:axSystem(),output_config:{effort:'low',format:{type:'json_schema',schema:AX_SCHEMA}},messages:[{role:'user',content:JSON.stringify(payload)}]};
+    return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){if(j.stop_reason==='refusal')throw new Error('模型拒绝了这句');var txt=(j.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');if(!txt)throw new Error('模型没有返回内容');try{return JSON.parse(txt);}catch(e){throw new Error('返回不是合法 JSON');}});}
+
+  /* ---------- 判断这回合要不要兜底，以及用哪种方式 ---------- */
+  var REC_KIND={nb:'nb',zone:'zone',city:'city',qa:'city'};
+  function axMode(t){if(!mxOn())return '';var k=t.kind,crit=t.criteria||[];
+    if(k==='open')return 'open';
+    if(k==='compare'){if(!t.cmp)return 'open';if(t.cmp.layer==='region'&&crit.length)return 'compare';return '';}
+    if(REC_KIND[k]&&t.html&&crit.length)return 'recommend';
+    if(k==='qa'&&!t.html)return 'recommend';
+    if(k==='knowledge'&&/还没有条目/.test(t.lead||''))return 'open';
+    return '';}
+  function axPayload(t,mode){var p={mode:mode,question:t.text||'',criteria:t.criteria||[],profile:mxCurrent(),data:{}};
+    if(mode==='compare'){p.data.A=axFacts(t.cmp.A,t.cmp.kind);p.data.B=axFacts(t.cmp.B,t.cmp.kind);}
+    else if(mode==='recommend'){p.data.pool=axPool(REC_KIND[t.kind]);}
+    else{p.data.提到的区域=findRegionsAll(normAlias(t.text||'')).slice(0,3).map(function(r){return axFacts(r.name,r.kind||regionKind(r.name));});p.data.全域=V4.region;}
+    return p;}
+  var AX_NOTE='<div class="muted" style="font-size:10px;margin-top:5px">由模型基于演示数据作答</div>',AX_FB='<div class="v4fb"><button class="q" data-fb="ok"><i class="ti ti-thumb-up"></i>满意</button><button class="q ghost" data-fb="bad"><i class="ti ti-thumb-down"></i>不满意</button></div>';
+  /* 按模型挑的名字重画区域卡（卡片、地图、选定块沿用原有组件） */
+  function axRenderPicks(t,kind,names){var p=profile;
+    if(kind==='nb'){var rows=names.map(function(n){return rowFor(n);}),cards='';covOn=true;rows.forEach(function(r,i){cards+=ncard(r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7]).replace('data-kind="nb"','data-kind="nb" data-idx="'+(i+1)+'"');});covOn=false;t.html='<div class="v4scroll">'+cards+'</div>';var cl=condLayers(p,null);
+      t.layers={pins:[],polys:rows.map(function(r){return {pts:blob(nbGeo(r[0],nbCity(r[0])),1.1,'nb'+r[0],16),label:r[0],fillOpacity:0.1};}).concat(cl.polys),circles:cl.circles,points:cl.points.concat(rows.map(function(r,i){return {geo:nbGeo(r[0],nbCity(r[0])),icon:'ti-map-pin',label:(i+1)+''};}))};t.pick={kind:'nb',noun:'社区',names:names};}
+    else if(kind==='zone'){t.html='<div class="v4scroll">'+names.map(function(z,i){return zoneCard(z).replace('data-kind="zone"','data-kind="zone" data-idx="'+(i+1)+'"');}).join('')+'</div>';
+      t.layers={pins:[],polys:names.map(function(z){var zz=ZONES[z],lat=0,lng=0;zz.nbs.forEach(function(q){var g=nbGeo(q[0],q[1]);lat+=g[0];lng+=g[1];});lat/=zz.nbs.length;lng/=zz.nbs.length;return {pts:blob([lat,lng],2.6,'zone'+z,18),label:z,fillOpacity:0.08};}),circles:[],points:[]};t.pick={kind:'zone',noun:'生活圈',names:names};}
+    else{t.html='<div class="v4scroll">'+names.map(function(c,i){var a=CITYCARD[c];return citycard(a[0],a[1],a[2],a[3],a[4],a[5]).replace('data-tap="'+a[0]+'"','data-tap="'+a[0]+'" data-kind="city" data-idx="'+(i+1)+'"');}).join('')+'</div>';
+      t.layers={pins:[],polys:names.map(function(c){return {pts:blob(cityCtr(c),5,'city'+c,20),label:c,fillOpacity:0.07};}),circles:[],points:[]};t.pick={kind:'city',noun:'城市',names:names};}
+    t.html+=AX_FB;}
+  function axValid(kind,name){return kind==='nb'?!!nbCity(name):kind==='zone'?!!ZONES[name]:!!CITYCARD[name];}
+  function axApply(t){var r=t.llmRes,mode=t.llmMode;if(!r)return;var ans=esc((r.answer||'').trim());
+    if(mode==='compare'){t.lead=ans||t.lead;var rows=(r.rows||[]).slice(0,4);t.html=(rows.length?cmpTable([t.cmp.A,t.cmp.B],rows.map(function(x){return [x.label,esc(x.a),esc(x.b)];})):'')+AX_NOTE;t.layers=null;}
+    else if(mode==='recommend'){var kind=REC_KIND[t.kind],seen={},picks=(r.picks||[]).filter(function(x){if(!x||!axValid(kind,x.name)||seen[x.name])return false;seen[x.name]=1;return true;}).slice(0,4);
+      if(!picks.length){if(r.nodata&&ans)t.lead=ans;return;}
+      axRenderPicks(t,kind,picks.map(function(x){return x.name;}));var noun={nb:' 个社区',zone:' 个生活圈',city:' 个城市'}[kind];
+      t.lead=(t.kind==='qa'&&ans?(ans+' '):'')+'为你挑选了这 '+picks.length+noun+'：'+picks.map(function(x){return esc(x.name)+'：'+esc((x.why||'').trim());}).join('；')+'。点开卡片看详情。';t.html+=AX_NOTE;}
+    else{t.lead=ans||'这个问题我暂时答不了。';t.html=AX_NOTE;t.layers=null;t.pick=null;if(!t.extra.some(function(x){return x.id==='op'+t.id;}))t.extra.push({id:'op'+t.id,keep:true,chips:needChips().slice(0,3)});}}
+  function axStart(t,mode){t.llm='pending';t.llmMode=mode;var keep={lead:t.lead,html:t.html,layers:t.layers,pick:t.pick};t.lead='<span class="muted">这个问题模板覆盖不到，正在让模型基于数据回答…</span>';t.html='';t.layers=null;t.pick=null;
+    axCall(axPayload(t,mode)).then(function(res){t.llm='done';t.llmRes=res;t.lead=keep.lead;t.html=keep.html;t.layers=keep.layers;t.pick=keep.pick;axApply(t);renderTurn(t);if(t.layers&&mapShown())setSheet('half');})
+      .catch(function(e){t.llm='fail';t.lead=keep.lead;t.html=keep.html;t.layers=keep.layers;t.pick=keep.pick;if(mode==='open'&&!t.lead)t.lead='这个问题我暂时答不了。';renderTurn(t);addAI('<span class="muted" style="font-size:11px">模型回答失败（'+esc((e&&e.message)||String(e))+'），先按通用口径给出。</span>');});}
+
+  /* ---------- 追问：模型选项 + 规则保底，一轮一个块，最多 3 行 ---------- */
+  var NO_MODEL_ASK={zone:1,city:1,market:1,knowledge:1,timing:1,ack:1,who:1,agentq:1,advice:1,share:1,offtopic:1,browse:1,closing:1,more:1,ref:1,daily:1,narrative:1};
+  function axMergeAsks(t){if(!mxOn()||t.skipped||NO_MODEL_ASK[t.kind]||!(t.mAsks&&t.mAsks.length))return;var have=t.asks||[],add=firstMissing(t.mAsks).filter(function(a){return !have.some(function(h){return h.field===a.field;});});if(!add.length)return;
+    if(!have.length){t.html='';t.lead='';t.layers=null;t.pick=null;t.relaxOpts=[];t.batch=null;t.extra=[];t.askFirst=true;t.askHead='先确认'+add.map(function(a){return a.label;}).join('和')+'，我再给结果：';}
+    t.asks=have.concat(add).slice(0,3);}
+
+  var _buildTurn7=buildTurn;buildTurn=function(t){
+    if(!(t.criteria&&t.criteria.length)&&t.text&&critByText[t.text])t.criteria=critByText[t.text];
+    if(t.kind==='open'){t.html='';t.lead='';t.layers=null;t.relaxOpts=[];t.extra=(t.extra||[]).filter(function(x){return x.keep;});t.asks=null;t.pick=null;if(!mxOn()){t.lead='这个问题我暂时答不了。';return;}}
+    else _buildTurn7(t);
+    axMergeAsks(t);if(t.asks&&t.asks.length)return;
+    if(t.llm==='done'){axApply(t);return;}
+    if(t.llm==='pending'||t.llm==='fail')return;
+    var mode=axMode(t);if(mode)axStart(t,mode);};
+  window.__v7={call:axCall,system:axSystem,payload:axPayload,mode:axMode,pool:axPool,facts:axFacts};
 
 })();
 </script>
