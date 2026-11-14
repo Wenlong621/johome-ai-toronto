@@ -207,6 +207,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -298,6 +299,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 #jhp .chat .v3und .v3mini{margin-left:auto;font-size:10px;padding:2px 8px}
 .v3und .tag.lbl{background:none;border:0;padding:0 0 0 3px;color:var(--color-text-tertiary);font-weight:500}.v3und .tag.lbl.now{color:#0F6E56}#jhp .chat .v3und .tag.lbl{padding:0 0 0 3px}
+.v3und .tag.brk{flex-basis:100%;height:0;padding:0!important;border:0;margin:-2px 0;background:none}.v3und .tag.lbl{min-width:34px}
 </style>
 </head>
 <body>
@@ -2159,7 +2161,7 @@ return null;}
       G.soft.push(c);});
     /* 写不进档案字段的本轮条件（模型返回的 criteria）也算本轮 */
     ((t&&t.criteria)||[]).forEach(function(x){G.turn.push({t:x,cls:'new'});});
-    var res=head.slice();function add(lb,arr,cls){if(!arr.length)return;res.push({t:lb,cls:'lbl'+(cls||'')});arr.forEach(function(c){res.push(c);});}
+    var res=head.slice();var groups=0;function add(lb,arr,cls){if(!arr.length)return;if(groups++)res.push({t:'',cls:'brk'});/* 每组另起一行 */res.push({t:lb,cls:'lbl'+(cls||'')});arr.forEach(function(c){res.push(c);});}
     add('本轮',G.turn,' now');add('范围',G.range);add('硬条件',G.hard);add('软条件',G.soft);add('资金',G.aff);G.neg.forEach(function(c){res.push(c);});
     function tx(a){return a.map(function(c){return c.t;});}
     lastTask={card:kind,turn:tx(G.turn),range:tx(G.range),hard:tx(G.hard),soft:tx(G.soft),avoid:tx(G.neg)};if(t)t.task=lastTask;return res;};
