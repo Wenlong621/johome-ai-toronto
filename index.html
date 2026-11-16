@@ -211,6 +211,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2183,7 +2184,10 @@ return null;}
   function rkLabel(k){var i;for(i=0;i<FIELDS.length;i++)if(FIELDS[i].k===k)return FIELDS[i].label;return RK_XL[k]||k;}
   function rkSoft(){var o={},i,f;for(i=0;i<FIELDS.length;i++){f=FIELDS[i];if(RKEYS.indexOf(f.k)>=0||HARD_K[f.k]||RANGE_K[f.k]||RK_SKIP[f.k])continue;if(profile[f.k])o[f.label]=profile[f.k];}return o;}
   function rkHard(){var o={},i,f;for(i=0;i<FIELDS.length;i++){f=FIELDS[i];if((HARD_K[f.k]||RANGE_K[f.k])&&profile[f.k])o[f.label]=profile[f.k];}if(profile.mustHave)o['商圈必备']=profile.mustHave;if(profile.feeMax)o['月费上限']=profile.feeMax;return o;}
-  function rkTurnCond(t){var f={};(t.newKeys||[]).forEach(function(k){if(k&&k.charAt(0)!=='_'&&RKEYS.indexOf(k)<0&&profile[k])f[rkLabel(k)]=profile[k];});return {'字段':f,'评判标准':(t.criteria||[]).slice()};}
+  function rkTurnCond(t){var f={},o;(t.newKeys||[]).forEach(function(k){if(k&&k.charAt(0)!=='_'&&RKEYS.indexOf(k)<0&&profile[k])f[rkLabel(k)]=profile[k];});
+    /* 这句话刚说的「不要 X」也算本轮条件；第一次算的时候记在回合上，重出时不变 */
+    if(!t.rkNegSet){t.rkNegSet=true;t.rkNeg=(lastNeg||[]).filter(function(a){return a&&a.dim!=='排除区域'&&!a.thr;}).map(function(a){return a.dim+'：'+a.value;});}
+    o={'字段':f,'评判标准':(t.criteria||[]).slice()};if(t.rkNeg&&t.rkNeg.length)o['不要']=t.rkNeg.slice();return o;}
   function rkAvoid(){return avoidList(profile).filter(function(a){return !a.hard&&a.dim!=='排除区域';}).map(function(a){return a.dim+'：'+a.value;});}
   function rkPayload(t,kind,pool,n){return {card:RK_CN[kind],need:n,'本轮条件':rkTurnCond(t),'软条件':rkSoft(),'尽量避开':rkAvoid(),'硬条件':rkHard(),pool:pool};}
 
@@ -2206,7 +2210,7 @@ return null;}
     '规则：',
     '1. 只能从 pool 里选，name 必须与 pool 里的 name 完全一致，不新增、不改写。',
     '2. 按候选与用户条件的贴合程度从高到低排，返回前 need 个；pool 不足 need 个时全部返回。',
-    '3. 「本轮条件」是用户这句话刚提出的，优先级最高：先按它排，再考虑「软条件」里档案已有的条件。命中「尽量避开」的候选往后排。「硬条件」已由规则筛过，不要再用它淘汰候选，但可以用来写理由（如预算内房源占比）。',
+    '3. 「本轮条件」是用户这句话刚提出的，优先级最高：先按它排（其中的「不要」是用户这句话刚说要避开的），再考虑「软条件」里档案已有的条件。命中「尽量避开」的候选往后排。「硬条件」已由规则筛过，不要再用它淘汰候选，但可以用来写理由（如预算内房源占比）。',
     '4. 每个入选候选写 why：2–3 条「为你而选」的理由。card 是房源时每条不超过 10 个字，其他不超过 16 个字。有本轮条件时第一条必须回应本轮条件。',
     '5. 理由里的事实和数字只能来自该候选在 pool 里的字段，数字原样引用，不要编造。条件没有直接对应的字段时，用相关字段判断（如用中餐馆、亚洲超市的数量回应「华人生活」）；没有任何相关字段就不写这一条。',
     '6. 不对族群下绝对结论（不说「最适合华人」「华人最多」），改说配套事实。不用「最安全」「最好」这类绝对说法。不预测房价。',
@@ -2237,7 +2241,7 @@ return null;}
   function rkNote(t){var rk=t.rk;if(!rk||!t.html||t.html.indexOf('v4scroll')<0||t.html.indexOf('rknote')>=0)return;
     var s=rk.src==='model'?('由模型在 '+rk.pool+' 个候选里排序'+(rk.ms?('，用时 '+(Math.round(rk.ms/100)/10)+' 秒'):'')):rk.src==='fail'?('模型排序失败（'+esc(rk.err||'未知原因')+'），已按默认顺序排：'+RK_FB[rk.kind]):('未开启模型，按默认顺序排：'+RK_FB[rk.kind]);
     var note='<div class="muted rknote" style="font-size:10px;margin-top:5px">'+s+'</div>',i=t.html.indexOf('<div class="v4fb">');t.html=i>=0?(t.html.slice(0,i)+note+t.html.slice(i)):(t.html+note);
-    if(rk.src!=='model'&&rk.kind==='listing'&&t.lead)t.lead=t.lead.replace('按你的偏好排序，','最新上架的排在前，');}
+    if(rk.src!=='model'&&rk.kind==='listing'&&t.lead)t.lead=t.lead.replace(/按你的偏好排序，这 (\d+) 套最匹配/,'先看最新上架的 $1 套');}
   function rkStart(t){var need=t.rkNeed,keep={lead:t.lead,html:t.html,layers:t.layers,pick:t.pick,extra:t.extra,relaxOpts:t.relaxOpts},t0=Date.now(),sig=JSON.stringify(profile);t.rkNeed=null;t.rkPending=true;t.rkChain=(t.rkChain||0)+1;
     t.lead='<span class="muted">正在按你的条件给 '+need.payload.pool.length+' 个候选排序…</span>';t.html='';t.layers=null;t.pick=null;t.extra=[];t.relaxOpts=[];RK.last={key:need.key,payload:need.payload,res:null,err:''};
     rkCall(need.payload).then(function(res){var c={ranked:res.ranked,ms:Date.now()-t0};RK.cache[need.key]=c;RK.byPool[need.poolKey]=c;RK.last.res=res;},function(e){RK.fail[need.key]=(e&&e.message)||String(e);RK.last.err=RK.fail[need.key];}).then(function(){t.rkPending=false;
