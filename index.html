@@ -215,6 +215,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2274,7 +2275,8 @@ return null;}
   /* 选社区 / 生活圈 / 城市时，句子自带的评判标准已经作为本轮条件进了排序，不再走 p7 的「模型挑卡」 */
   var _axMode10=axMode;axMode=function(t){var m=_axMode10(t);return (m==='recommend'&&t.kind!=='qa')?'':m;};
   /* ---------- 每日推荐：资格达成即默认开启，不询问；只提示一次去打开系统通知（没开通知也照常执行，下次打开时显示） ---------- */
-  function notifDue(){return !!daily.on&&!daily.notifAsked&&!daily.notif&&dailyEligible();}
+  /* 资格只认关注区域：只是「本次看」某个区域时还不算达成，等用户加入关注后再提示 */
+  function notifDue(){return !!daily.on&&!daily.notifAsked&&!daily.notif&&watchCount()>0&&dailyEligible();}
   function notifText(){return '每日推荐已开：每天 '+daily.time+' 有符合条件的新上架房源会告诉你。打开通知才能及时收到。';}
   function notifOn(){daily.notif=true;addAI('通知已打开（演示：这里会弹出系统的通知权限框）。');}
   function notifChips(pick){return [{label:'打开通知',icon:'ti-bell',fn:function(){if(pick)disablePickables();notifOn();}},{label:'先不用',fn:function(){if(pick)disablePickables();addAI('好。新房源会在你下次打开时显示；想收通知，随时在档案页「每日推荐」里打开。');}}];}
