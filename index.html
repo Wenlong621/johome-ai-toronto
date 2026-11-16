@@ -212,6 +212,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2199,7 +2200,11 @@ return null;}
   function rkFactDistrict(d){var poi=d.poi||distPOI(d.name,d.city,d.line),dm=distMetrics(d.name,d.city)||{},o={name:d.name,'城市':d.city,'地标':d.landmark||'','描述':d.line||'','氛围类型':d.type||distType(d.name,d.line)||'','店铺数':poi,'轨道':hasRail(d.city)?('有'+V4.rail):'无'};if(dm.condo)o['范围内Condo中位价']='$'+dm.condo+'万';if(dm.cnt)o['范围内在售']=dm.cnt+' 套';return o;}
   function rkFactSchool(x){var nbs=schoolNbs(x[0])||[],sum=0,n=0;nbs.forEach(function(q){var m=nbData(q).med;if(m){sum+=m;n++;}});var o={name:x[0],'类型':x[1],'Fraser评分':x[2],'特色':x[3]};if(n)o[V4.catchWord+'范围内中位价']='$'+Math.round(sum/n)+'万';return o;}
   function rkFactListing(it){var l=it.l,d=nbData(l.nb,l.city),med=Math.round(d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9)),o={name:''+l.id,'社区':l.nb,'城市':l.city,'价格':'$'+l.price+'万','同类中位价':'$'+med+'万','房型':l.type,'卧室':l.beds,'浴室':l.baths,'面积':l.sqft+' sqft','建成年份':l.year,'上架天数':l.days,'朝向':l.expo,'临街':l.frontage?'是':'否','距轨道站':l.rail+'m','学区评分':l.school,'出租':l.rentals,'宠物':l.pets};
-    if(l.view)o['景观']=l.view;if(l.nuisance)o['附近']=l.nuisance;if(l.levels)o['层数']=l.levels;if(l.floor)o['楼层']=l.floor;if(l.fee)o['月费']='$'+l.fee;if(l.yard)o['院子']='有';if(l.basement)o['地下室']='有';return o;}
+    if(l.view)o['景观']=l.view;if(l.nuisance)o['附近']=l.nuisance;if(l.levels)o['层数']=l.levels;if(l.floor)o['楼层']=l.floor+(l.top?'（顶层）':'');if(l.fee){o['月费']='$'+l.fee;if(l.feeInc)o['月费含']=l.feeInc;}if(l.tax)o['地税']='$'+l.tax+'/年';
+    o['车位']=l.parkN+' 位'+(l.parkN?(' · '+l.parkType):'');if(l.type==='Condo')o['电梯']=l.elevator?'有':'无';else{o['地下室']=l.basement?'有':'无';o['院子']=l.yard?'有':'无';}if(l.semi)o['双拼']='是';
+    o['产权']=l.lease?'Leasehold':'Freehold';if(l.flood)o['洪泛区']='是';if(l.age55)o['年龄限制']='55+';if(profile.dest&&l.commute)o['到'+profile.dest]=l.commute+' 分钟';
+    /* 所在社区：标签和增值档，回应调性、自然环境、保值增值这类条件。示例房源没有挂牌描述，上线时按 PRD 7.5 加上 description */
+    var tg=nbTags(l.nb,l.city)||[];if(tg.length)o['社区标签']=tg.join('、');o['社区增值档']=apprecTier(l.nb,l.city).tier;return o;}
   /* 城市 / 生活圈的候选池 = 区域库里全部（去掉排除区域和已展示的）；预置名单里靠前的排在前，作为兜底顺序 */
   function rkRegionPool(useZone,pf,t){var all=useZone?Object.keys(ZONES):Object.keys(CITYCARD).filter(function(c){return /^[A-Za-z]/.test(c);}),seen={},out=[];
     pf.order.concat(all).forEach(function(n){if(seen[n])return;seen[n]=1;if(!(useZone?ZONES[n]:CITYCARD[n])||regExcluded(n)||(t.excludeNames&&t.excludeNames.indexOf(n)>=0))return;out.push({n:n,s:pf.score[n]||0});});return out;}
