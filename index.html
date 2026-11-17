@@ -219,6 +219,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2250,7 +2251,7 @@ return null;}
 
   /* ---------- 回合：需要排序时先显示「正在排序」，结果回来后用缓存重出 ---------- */
   function rkNote(t){var rk=t.rk;if(!rk||!t.html||t.html.indexOf('v4scroll')<0||t.html.indexOf('rknote')>=0)return;
-    var s=rk.src==='model'?('由模型在 '+rk.pool+' 个候选里排序'+(rk.ms?('，用时 '+(Math.round(rk.ms/100)/10)+' 秒'):'')):rk.src==='fail'?('模型排序失败（'+esc(rk.err||'未知原因')+'），已按默认顺序排：'+RK_FB[rk.kind]):('未开启模型，按默认顺序排：'+RK_FB[rk.kind]);
+    var s=rk.src==='fail'?('模型排序失败（'+esc(rk.err||'未知原因')+'），已按默认顺序排：'+RK_FB[rk.kind]):'';if(rk.src!=='model'&&rk.kind==='listing'&&t.lead)t.lead=t.lead.replace(/按你的偏好排序，这 (\d+) 套最匹配/,'先看最新上架的 $1 套');if(!s)return;
     var note='<div class="muted rknote" style="font-size:10px;margin-top:5px">'+s+'</div>',i=t.html.indexOf('<div class="v4fb">');t.html=i>=0?(t.html.slice(0,i)+note+t.html.slice(i)):(t.html+note);
     if(rk.src!=='model'&&rk.kind==='listing'&&t.lead)t.lead=t.lead.replace(/按你的偏好排序，这 (\d+) 套最匹配/,'先看最新上架的 $1 套');}
   function rkStart(t){var need=t.rkNeed,keep={lead:t.lead,html:t.html,layers:t.layers,pick:t.pick,extra:t.extra,relaxOpts:t.relaxOpts},t0=Date.now(),sig=JSON.stringify(profile);t.rkNeed=null;t.rkPending=true;t.rkChain=(t.rkChain||0)+1;
