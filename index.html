@@ -224,6 +224,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1295,7 +1296,7 @@ return null;}
   function condChips(kind,pending,t){var out=[],p=profile,UND_SKIP={firstTime:1,timeline:1,preApproved:1,downPay:1},nk=(t&&t.newKeys)||[];if(t&&t.noNew)out.push({t:'这句没抽到新条件，沿用档案',cls:'soft'});FIELDS.forEach(function(f){if(UND_SKIP[f.k])return;var v=p[f.k];if(v)out.push({t:f.label+'：'+v,cls:nk.indexOf(f.k)>=0?'new':''});});affChips(null,nk).forEach(function(c){out.push(c);});if(p.mustHave)out.push({t:'商圈必备：'+p.mustHave});if(p.feeMax)out.push({t:'月费上限：$'+p.feeMax});if(kind==='listing'&&!pending){if(!p.budget)out.push({t:'预算：未限',cls:'soft'});if(!p.htype)out.push({t:'房型：未限',cls:'soft'});if(!p.beds)out.push({t:'卧室数：未限',cls:'soft'});}avoidList(p).forEach(function(a){out.push({t:avoidLabel(a),neg:!a.thr});});return out;}
   function renderTurn(t){var el=t.el;if(!el){el=document.createElement('div');el.className='v4turn';el.id=t.id;list.appendChild(el);t.el=el;}
     var h='';var ch=condChips(t.kind,!!(t.asks&&t.asks.length),t);if(ch.length)h+='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div style="flex:1;min-width:0">'+undHTML(ch)+'</div></div>';
-    if(t.asks&&t.asks.length)h+='<div class="row"><div class="av"><i class="ti ti-help-circle"></i></div><div style="flex:1;min-width:0"><div class="bub v4askb">'+(t.askFirst?(t.askHead||(t.asks.length>1?'先补上这几项，我再出结果：':t.asks[0].text)):(t.asks.length>1?'补上这几项，结果更准：':t.asks[0].text))+'</div>'+t.asks.map(function(a){return '<div class="v4askrow"><span class="v4askl">'+esc(a.label)+'</span><div style="flex:1;min-width:0"><div class="qr v4askq" style="padding-left:0">'+a.opts.map(function(o){return '<button class="q" data-askf="'+a.field+'" data-askv="'+esc(o)+'">'+esc(o)+'</button>';}).join('')+'</div><input class="inp v4askin" data-askfree="'+a.field+'" placeholder="或直接输入，如 '+esc(a.ph||a.opts[0])+'"/></div></div>';}).join('')+'<div class="qr" style="padding-left:0;margin-top:6px"><button class="q" data-askok="1" style="background:#0F6E56;color:#fff"><i class="ti ti-check"></i>确定</button><button class="q ghost" data-askf="__all" data-askv="__skip">跳过</button></div></div></div>';
+    if(t.asks&&t.asks.length)h+='<div class="row"><div class="av"><i class="ti ti-help-circle"></i></div><div style="flex:1;min-width:0"><div class="bub v4askb">'+(t.askFirst?(t.askHead||(t.asks.length>1?'再告诉我下面几项，我马上给你结果：':t.asks[0].text)):(t.asks.length>1?'方便的话再补上这几项，结果会更准：':t.asks[0].text))+'</div>'+t.asks.map(function(a){return '<div class="v4askrow"><span class="v4askl">'+esc(a.label)+'</span><div style="flex:1;min-width:0"><div class="qr v4askq" style="padding-left:0">'+a.opts.map(function(o){return '<button class="q" data-askf="'+a.field+'" data-askv="'+esc(o)+'">'+esc(o)+'</button>';}).join('')+'</div><input class="inp v4askin" data-askfree="'+a.field+'" placeholder="或直接输入，如 '+esc(a.ph||a.opts[0])+'"/></div></div>';}).join('')+'<div class="qr" style="padding-left:0;margin-top:6px"><button class="q" data-askok="1" style="background:#0F6E56;color:#fff"><i class="ti ti-check"></i>确定</button><button class="q ghost" data-askf="__all" data-askv="__skip">跳过</button></div></div></div>';
     if(t.lead)h+='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bub">'+t.lead+'</div></div>';
     if(t.html)h+='<div class="row"><div class="av"><i class="ti ti-sparkles"></i></div><div class="v4cards" style="flex:1;min-width:0">'+t.html+'</div></div>';
     if(t.pick&&t.pick.names.length&&!t.pickDone)h+='<div class="row"><div class="av"><i class="ti ti-help-circle"></i></div><div style="flex:1;min-width:0"><div class="bub v4askb">觉得哪个'+t.pick.noun+'适合你？</div><div class="qr v4pickq" style="padding-left:0;margin-top:5px">'+t.pick.names.map(function(n){return '<button class="q" data-pick="'+esc(n)+'">'+esc(n)+'</button>';}).join('')+'</div><div class="qr" style="padding-left:0;margin-top:6px"><button class="q" data-pickok="1" style="background:#0F6E56;color:#fff"><i class="ti ti-check"></i>确定</button><button class="q ghost" data-pickmore="1"><i class="ti ti-refresh"></i>换一批</button></div></div></div>';
@@ -1419,7 +1420,7 @@ return null;}
     if(pendingAsk&&pendingAsk.turn.asks){var hit=pendingAsk.turn.asks.some(function(a){return profile[a.field]&&profile[a.field]!==before[a.field];});if(hit){var tt=pendingAsk.turn;lockAsk(tt);tt.newKeys=nk;tt.noNew=false;continueTurn(tt);return;}}
     var kind=detectIntent(t,chips);
     if(kind==='need'){typing(function(){addAI('先告诉我一个方向就行：想住哪、预算多少、或在哪上班？下面任选一句试试。');quickAct(typeof needChips==='function'?needChips():V4.examples.map(function(x){return {label:x,fn:function(){inp.value=x;doSend();}};}),'live');});return;}
-    if(kind==='afford'&&!affordHaveInput()){typing(function(){addAI('算可负担性需要几个数，填一下（可只算这次）：');openAffordForm(function(){affordReply('');});});return;}
+    if(kind==='afford'&&!affordHaveInput()){typing(function(){addAI('帮你算算能买多少，需要下面几个数（可以只算这次，不保存）：');openAffordForm(function(){affordReply('');});});return;}
     var tn=newTurn();tn.kind=kind;tn.text=t;tn.newKeys=chips.filter(function(c){return c.k;}).map(function(c){return c.k;});tn.noNew=!chips.length;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
   doSend=function(){var t=inp.value.trim();if(!t)return;inp.value='';v4Send(t);};sendBtn.onclick=function(){doSend();};
   var _renderTurn=renderTurn;renderTurn=function(t){_renderTurn(t);pendingAsk=(t.asks&&t.asks.length)?{turn:t}:null;};
@@ -2265,6 +2266,7 @@ return null;}
       if(JSON.stringify(profile)!==sig||!t.el){/* 等结果时档案已经变了（用户说了下一句）：不拿新档案重算旧回合，放回刚才圈好的默认顺序 */t.lead=keep.lead;t.html=keep.html;t.layers=null;t.pick=keep.pick;t.relaxOpts=keep.relaxOpts;renderTurn(t);return;}
       t.asks=null;buildTurn(t);renderTurn(t);if(t.layers&&mapShown())setSheet('half');});}
   var _buildTurn10=buildTurn;buildTurn=function(t){var prev=RK.cur;RK.cur=t;t.rkNeed=null;t.rk=null;try{_buildTurn10(t);}finally{RK.cur=prev;}
+    if(t.asks&&t.asks.length&&t.askFirst)t.askHead=pfAskHead(t);
     var cards=!!(t.html&&t.html.indexOf('v4scroll')>=0)&&!(t.asks&&t.asks.length);
     if(t.rkNeed&&(!cards||t.llm==='pending')){t.rkNeed=null;}
     if(t.rkNeed&&(t.rkChain||0)>=3){RK.fail[t.rkNeed.key]='结果不稳定';t.rk={src:'fail',err:'结果不稳定',kind:t.rkNeed.kind,pool:t.rkNeed.payload.pool.length};t.rkNeed=null;}
@@ -2357,6 +2359,10 @@ return null;}
       if(i>=0)Array.prototype.splice.apply(out,[i+1,0].concat(add));
       else{while(out[at]&&/^(模型判意图|这句没抽到新条件)/.test(out[at].t))at++;var ins=[{t:'本轮',cls:'lbl now'}].concat(add);if(out.length>at)ins.push({t:'',cls:'brk'});Array.prototype.splice.apply(out,[at,0].concat(ins));}}
     if(t&&t.noNew===true&&!(t.criteria&&t.criteria.length)&&!out.some(function(c){return c.cls==='new';}))return [];return out;};
+  /* ---------- 追问块开头那句话：口语，说清楚要补什么、补了能帮用户做什么 ---------- */
+  var ASK_SAY={budget:'预算',htype:'想要的房型',beds:'想要几个卧室',kids:'孩子在读哪个学段',dest:'大概在哪上班',time:'能接受多久的通勤',mode:'平时怎么通勤',mustHave:'商圈里一定要有什么',tCity:'想看哪个区域'},ASK_DO={listing:'我马上帮你找房',nb:'我帮你挑有合适房源的社区',school:'我帮你找周边有合适房源的学校',district:'我帮你挑有合适房源的商圈',daily:'我就每天帮你留意新上架的房源'};
+  function pfAskHead(t){var say=t.asks.map(function(a){return ASK_SAY[a.field]||a.label;}),what=say.length>3?'下面几项':say.length>1?(say.slice(0,-1).join('、')+'和'+say[say.length-1]):say[0],commute=profile.dest&&t.asks.some(function(a){return a.field==='time'||a.field==='mode';});
+    return (commute?('去 '+esc(profile.dest)+' 上班的话，'):'')+'再告诉我'+what+'，'+(ASK_DO[t.kind]||'我好给你更准的结果')+'：';}
   window.__v10={state:RK,why:rkWhy,system:rkSystem,soft:rkSoft,hard:rkHard};
 
 })();
