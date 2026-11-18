@@ -220,6 +220,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2341,6 +2342,13 @@ return null;}
     all=all.filter(function(x){return !all.some(function(y){return y!==x&&y.indexOf(x)>=0;});});profile.amenities=all.join('、');profile.lifeSvc='';}
   var _extract10=extract;extract=function(t){_extract10(t);if(t&&typeof t==='string'){try{pfRules(t);}catch(e){}}pfMerge();};
   var _mxApply10=mxApply;mxApply=function(res,t){_mxApply10(res,t);pfMerge();};
+  /* ---------- 「还没想好 / 不确定选哪个城市、区域、社区、学校、商圈」= 要推荐对应层级，不算自我叙述 ---------- */
+  function pfUndecided(t){if(!/没想好|没想清楚|没决定|没确定|没定|不确定|不知道|不清楚|拿不准|拿不定|纠结|犹豫|没主意|没头绪/.test(t)||!/哪|什么|怎么选|如何选/.test(t))return '';
+    if(/商圈/.test(t))return 'district';if(/学校|学区/.test(t))return 'school';if(/社区|小区/.test(t))return 'nb';if(/城市|哪个市/.test(t))return 'city';if(/生活圈|片区|区域|哪个区|哪一区|什么区|住哪/.test(t))return 'zone';return '';}
+  var _detectIntent10=detectIntent;detectIntent=function(t,chips){var u=pfUndecided(t||'');if(u){mxIntent=null;return u;}return _detectIntent10(t,chips);};
+  var _mxSystem10=mxSystem;mxSystem=function(){return _mxSystem10()+'\n18. 用户表示还没想好 / 不确定 / 纠结该选哪个城市、生活圈（区域）、社区、学校、商圈时，是在请你推荐对应的层级：intent 分别给 city / zone / nb / school / district，不算 narrative。';};
+  /* ---------- 这句话没抽到任何新条件（只判出了意图）时，不出「AI 理解为」 ---------- */
+  var _condChips10=condChips;condChips=function(kind,pending,t){var out=_condChips10(kind,pending,t);if(t&&t.noNew===true&&!(t.criteria&&t.criteria.length)&&!out.some(function(c){return c.cls==='new';}))return [];return out;};
   window.__v10={state:RK,why:rkWhy,system:rkSystem,soft:rkSoft,hard:rkHard};
 
 })();
