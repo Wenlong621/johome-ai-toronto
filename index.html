@@ -223,6 +223,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2342,7 +2343,7 @@ return null;}
     var mt=t.match(/地税[^\d，,。]{0,6}(?:超过|高于|大于)\s*(\d[\d,]{2,6})[^，,。]{0,8}(?:不要|不考虑|不行)/);if(mt)profile.taxMax='≤$'+mt[1].replace(/,/g,'')+'/年';}
   function pfMerge(){if(!profile.lifeSvc)return;var all=[];(profile.amenities||'').split('、').concat(profile.lifeSvc.split('、')).forEach(function(x){x=(x||'').trim();if(x&&all.indexOf(x)<0)all.push(x);});
     all=all.filter(function(x){return !all.some(function(y){return y!==x&&y.indexOf(x)>=0;});});profile.amenities=all.join('、');profile.lifeSvc='';}
-  var _extract10=extract;extract=function(t){_extract10(t);if(t&&typeof t==='string'){try{pfRules(t);}catch(e){}}pfMerge();};
+  var _extract10=extract;extract=function(t){var tl=profile.timeline;_extract10(t);if(t&&typeof t==='string'){if(profile.timeline==='再看看'&&tl!=='再看看'&&!/再看看|随便看看|不急|不着急|慢慢看/.test(t))profile.timeline=tl;try{pfRules(t);}catch(e){}}pfMerge();};
   var _mxApply10=mxApply;mxApply=function(res,t){_mxApply10(res,t);pfMerge();};
   /* ---------- 「还没想好 / 不确定选哪个城市、区域、社区、学校、商圈」= 要推荐对应层级，不算自我叙述 ---------- */
   function pfUndecided(t){if(!/没想好|没想清楚|没决定|没确定|没定|不确定|不知道|不清楚|拿不准|拿不定|纠结|犹豫|没主意|没头绪/.test(t)||!/哪|什么|怎么选|如何选/.test(t))return '';
