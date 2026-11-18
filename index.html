@@ -221,6 +221,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1615,11 +1616,11 @@ return null;}
     correction:/^(不是|不对|哎不对|诶不对|哦不对|我说的是|我是说|应该是|刚才说错|改成|换成|预算先不限|先不限|不限了|去掉|删掉|撤销|撤回|都不对|重新来|重来)|不是\s*\S+[，,]?\s*(是|而是)\s*\S+|\S+\s*了$/,
     more:/^(换一批|换一组|再来一批|再换几个|都不合适|这几个都不合适|还有别的吗|其他的呢|再推几个)[。.！!]*$/,
     closing:/^(先这样|我再想想|我再看看|先到这|今天先到这|就这样吧|回头再说|晚点再聊)[。.！!，,]*(我再想想|吧|了)?[。.！!]*$/,
-    ref:/第\s*([一二三四五六七八九十\d]+)\s*(个|套|张|所|家)?|这套|这个|这所|这家|第一个和第三个/,
+    ref:/第\s*([一二三四五六七八九十\d]+)(?!\s*(?:次|年|天|步|时间))\s*(个|套|张|所|家)?|这套|这个|这所|这家|第一个和第三个/,
     stress:/利率.{0,6}(涨到|升到|到)\s*(\d+(?:\.\d+)?)\s*%.*(扛|撑|承受|还得起|受得了|顶得住|吃得消)/,
     market:/均价|中位价|房价多少|价格多少|多少钱一套|多少钱|涨了多少|跌了多少|涨幅|成交价|成交记录|买方市场|卖方市场|还便宜吗|贵不贵|行情|市场怎么样|价格走势/};
   function cnNum(s){var M={一:1,二:2,两:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9,十:10};if(/^\d+$/.test(s))return parseInt(s,10);return M[s]||0;}
-  function parseRefs(t){var out=[],re=/第\s*([一二三四五六七八九十\d]+)\s*(个|套|张|所|家)?/g,m;while((m=re.exec(t))){var n=cnNum(m[1]);if(n&&out.indexOf(n)<0)out.push(n);}return out;}
+  function parseRefs(t){var out=[],re=/第\s*([一二三四五六七八九十\d]+)(?!\s*(?:次|年|天|步|时间))\s*(个|套|张|所|家)?/g,m;while((m=re.exec(t))){var n=cnNum(m[1]);if(n&&out.indexOf(n)<0)out.push(n);}return out;}
   function isAck(t){return RX.smalltalk.test(t.trim());}
   function preIntent(t){var s=t.trim();if(!s)return null;
     if(isAck(s))return 'ack';if(RX.who.test(s))return 'who';if(RX.agent.test(s))return 'agentq';if(RX.advice.test(s))return 'advice';if(RX.share.test(s))return 'share';if(RX.offtopic.test(s)&&!/房源|房子|社区/.test(s))return 'offtopic';
