@@ -222,6 +222,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2349,7 +2350,12 @@ return null;}
   var _detectIntent10=detectIntent;detectIntent=function(t,chips){var u=pfUndecided(t||'');if(u){mxIntent=null;return u;}return _detectIntent10(t,chips);};
   var _mxSystem10=mxSystem;mxSystem=function(){return _mxSystem10()+'\n18. 用户表示还没想好 / 不确定 / 纠结该选哪个城市、生活圈（区域）、社区、学校、商圈时，是在请你推荐对应的层级：intent 分别给 city / zone / nb / school / district，不算 narrative。';};
   /* ---------- 这句话没抽到任何新条件（只判出了意图）时，不出「AI 理解为」 ---------- */
-  var _condChips10=condChips;condChips=function(kind,pending,t){var out=_condChips10(kind,pending,t);if(t&&t.noNew===true&&!(t.criteria&&t.criteria.length)&&!out.some(function(c){return c.cls==='new';}))return [];return out;};
+  var _condChips10=condChips;condChips=function(kind,pending,t){var out=_condChips10(kind,pending,t);if(!out.length)return out;
+    var SK={firstTime:1,timeline:1,preApproved:1,downPay:1},add=((t&&t.newKeys)||[]).filter(function(k){return SK[k]&&profile[k];}).map(function(k){return {t:rkLabel(k)+'：'+profile[k],cls:'new',k:k};});
+    if(add.length){var i=-1,j,at=0;for(j=0;j<out.length;j++)if(out[j].cls&&out[j].cls.indexOf('lbl now')>=0){i=j;break;}
+      if(i>=0)Array.prototype.splice.apply(out,[i+1,0].concat(add));
+      else{while(out[at]&&/^(模型判意图|这句没抽到新条件)/.test(out[at].t))at++;var ins=[{t:'本轮',cls:'lbl now'}].concat(add);if(out.length>at)ins.push({t:'',cls:'brk'});Array.prototype.splice.apply(out,[at,0].concat(ins));}}
+    if(t&&t.noNew===true&&!(t.criteria&&t.criteria.length)&&!out.some(function(c){return c.cls==='new';}))return [];return out;};
   window.__v10={state:RK,why:rkWhy,system:rkSystem,soft:rkSoft,hard:rkHard};
 
 })();
