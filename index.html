@@ -225,6 +225,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -317,6 +318,11 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 #jhp .chat .v3und .v3mini{margin-left:auto;font-size:10px;padding:2px 8px}
 .v3und .tag.lbl{background:none;border:0;padding:0 0 0 3px;color:var(--color-text-tertiary);font-weight:500}.v3und .tag.lbl.now{color:#0F6E56}#jhp .chat .v3und .tag.lbl{padding:0 0 0 3px}
 .v3und .tag.brk{flex-basis:100%;height:0;padding:0!important;border:0;margin:-2px 0;background:none}.v3und .tag.lbl{min-width:34px}
+#jhp .bub .pkl{margin-top:8px}
+#jhp .bub .pkn{font-weight:600;display:flex;align-items:center;gap:6px;color:var(--color-text-primary)}
+#jhp .bub .pki{flex:none;width:15px;height:15px;border-radius:50%;background:#0F6E56;color:#fff;font-size:9.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+#jhp .bub .pkw{margin:2px 0 0 21px;color:var(--color-text-secondary);line-height:1.5}
+#jhp .bub .pkh{margin-top:8px;font-size:10px;color:var(--color-text-tertiary)}
 </style>
 </head>
 <body>
@@ -2278,8 +2284,13 @@ return null;}
     _renderTurn10(t);};
 
   /* ---------- 模型的理由用在导语和详情页「为你而选」；没有模型理由时用原来的模板 ---------- */
-  var _pickLead10=pickLead;pickLead=function(t){var s=_pickLead10(t),rk=t.rk,k=t.pick.kind;if(!rk||rk.src!=='model')return s;var i=s.indexOf('为你挑选了这'),note=i>0?s.slice(0,i):'';
-    return note+'为你挑选了这 '+t.pick.names.length+PICK_NOUN[k]+'：'+t.pick.names.map(function(nm){var w=rkWhy[k+':'+nm];return (w&&w.length)?(esc(nm)+'：'+w.map(esc).join('、')):(k==='nb'?whyNb(nm,t):k==='school'?whySchool(nm):k==='district'?whyDistrict(nm):pickWhy(nm,k==='zone'));}).join('；')+'。点开卡片看详情。';};
+  function pfLeadRows(items){return items.map(function(x,ix){var w=(x.why||[]).map(function(r){return (''+r).trim();}).filter(Boolean);return '<div class="pkl"><div class="pkn"><span class="pki">'+(ix+1)+'</span>'+esc(x.name)+'</div>'+(w.length?('<div class="pkw">'+w.map(esc).join(' · ')+'</div>'):'')+'</div>';}).join('')+'<div class="pkh">点开卡片看详情</div>';}
+  var _pickLead10=pickLead;pickLead=function(t){var s=_pickLead10(t),rk=t.rk,k=t.pick.kind,i=s.indexOf('为你挑选了这'),note=i>0?s.slice(0,i):'';
+    var items=t.pick.names.map(function(nm){var w=(rk&&rk.src==='model')?rkWhy[k+':'+nm]:null;if(!(w&&w.length)){var raw=(k==='nb'?whyNb(nm,t):k==='school'?whySchool(nm):k==='district'?whyDistrict(nm):pickWhy(nm,k==='zone')),j=raw.indexOf('：');w=j>=0?raw.slice(j+1).split('、'):[];}return {name:nm,why:w};});
+    return note+'为你挑选了这 '+t.pick.names.length+PICK_NOUN[k]+'：'+pfLeadRows(items);};
+  /* 城市问答里由模型挑的卡（p7）也用同样的分行格式 */
+  var _axApply10=axApply;axApply=function(t){_axApply10(t);if(t.llmMode!=='recommend'||!t.llmRes||!t.pick||!t.pick.names.length||!t.lead)return;var i=t.lead.indexOf('为你挑选了这'),by={};if(i<0)return;(t.llmRes.picks||[]).forEach(function(x){if(x&&x.name)by[x.name]=(''+(x.why||'')).split('、');});
+    t.lead=t.lead.slice(0,i)+'为你挑选了这 '+t.pick.names.length+PICK_NOUN[t.pick.kind]+'：'+pfLeadRows(t.pick.names.map(function(nm){return {name:nm,why:by[nm]||[]};}));};
   var _fitFor10=fitFor;fitFor=function(name,city){var k='nb',w;try{k=areaTraits(name,city).kind||'nb';}catch(e){}w=rkWhy[k+':'+name]||rkWhy['zone:'+name]||rkWhy['city:'+name]||rkWhy['nb:'+name];if(w&&w.length)return '· '+w.map(esc).join('<br>· ');return _fitFor10(name,city);};
   var _fitForSchool10=fitForSchool;fitForSchool=function(name,inf){var w=rkWhy['school:'+name];if(w&&w.length)return '· '+w.map(esc).join('<br>· ');return _fitForSchool10(name,inf);};
   /* 选社区 / 生活圈 / 城市时，句子自带的评判标准已经作为本轮条件进了排序，不再走 p7 的「模型挑卡」 */
