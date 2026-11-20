@@ -227,6 +227,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1654,13 +1655,24 @@ return null;}
 
   /* ---------- 输入分发：先判无抽取意图 → 修正句重出上一结果 → 原流程 ---------- */
   var _renderTurn5=renderTurn;renderTurn=function(t){if(t.silent)return;_renderTurn5(t);if(pendingUndo&&!pendingUndo.done){var und=t.el&&t.el.querySelector('.v3und');if(und){var entry=pendingUndo;pendingUndo=null;entry.done=true;var b=document.createElement('button');b.className='v3mini ghost';b.setAttribute('data-undo','1');b.textContent='撤销';und.appendChild(b);b.onclick=function(){var wrap=und;undoAction(entry,wrap);};}}};
-  function rerunNew(from){if(!from||!from.kind||NEW_KINDS[from.kind])return;if(from.el)lockPick(from);var tn=newTurn();tn.kind=from.kind;tn.text=from.text;tn.skipped=from.skipped;tn.newKeys=from.newKeys||[];tn.noNew=!!from.noNew;from.newKeys=null;from.noNew=false;typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});}
+  /* undo：这次重出是某次写入引起的（修正句），撤销按钮要挂在这一块「AI 理解为」的末尾。出块前一刻才登记，不会被兜底的单独一行抢先 */
+  function rerunNew(from,undo){if(!from||!from.kind||NEW_KINDS[from.kind])return;if(from.el)lockPick(from);var tn=newTurn();tn.kind=from.kind;tn.text=from.text;tn.skipped=from.skipped;tn.newKeys=from.newKeys||[];tn.noNew=!!from.noNew;tn.gone=from.gone||[];from.newKeys=null;from.noNew=false;from.gone=null;typing(function(){buildTurn(tn);if(undo)showUndo(undo.before,undo.chips);renderTurn(tn);if(mapShown())setSheet('half');});}
   rerunLast=function(){if(lastTurn&&lastTurn.kind)rerunNew(lastTurn);};
   var _applyDislike5=applyDislike;applyDislike=function(l,c){_applyDislike5(l,c);setTimeout(function(){rerunLast();},900);};
   var pendingUndo=null;
-  function undoAction(entry,el){if(entry.done2)return;entry.done2=true;restore(profile,entry.before);entry.chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();if(el)el.innerHTML='<span class="muted">已撤销，档案回到上一版本（v'+(profile._v)+'）</span>';if(lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]){addAI('按撤销后的条件重出结果：');rerunNew(lastTurn);}}
+  function undoAction(entry,el){if(entry.done2)return;entry.done2=true;restore(profile,entry.before);entry.chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();if(el)el.innerHTML='<span class="muted">已撤销，档案已恢复成上一份</span>';if(lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]){/* 重出时高亮被恢复的条件；修正句留下的「未限 / 已去掉」标签不带过去 */lastTurn.newKeys=entry.chips.map(function(c){return c.k||c.gk||c.rk;}).filter(Boolean);lastTurn.gone=null;lastTurn.noNew=false;addAI('按撤销后的条件重出结果：');rerunNew(lastTurn);}}
   function undoRow(entry){var r=document.createElement('div');r.className='row';r.innerHTML='<div class="av" style="background:var(--color-background-secondary);color:#0F6E56"><i class="ti ti-database"></i></div><div class="v4undo">已记入档案：'+entry.chips.map(function(c){return esc(c.t);}).join('、')+'<button class="v3mini ghost" data-undo="1">撤销</button></div>';list.appendChild(r);r.querySelector('[data-undo]').onclick=function(){undoAction(entry,r.querySelector('.v4undo'));};scroll();}
   showUndo=function(before,chips){var entry={before:before,chips:chips,done:false};pendingUndo=entry;setTimeout(function(){if(pendingUndo===entry&&!entry.done){pendingUndo=null;entry.done=true;undoRow(entry);}},1100);};
+  /* 修正句去掉的条件：档案里已经没有值了，常规的「AI 理解为」不会再显示它，diffChips 也不报。这里列出来：
+     show=要补一枚标签回显（p9 负责放进块里）；rk=本次看的范围变小了但还有值，只需要把「本次看」高亮。had 是已有的改动标签，用来去重。
+     措辞跟 PRD 6.2 一致：找房条件被去掉写「未限」，没有区域写「全大温 / 全大多」；家庭、身份这类事实写「已去掉」 */
+  var FACT_K={curCity:1,family:1,kids:1,timeline:1,preApproved:1,downPay:1,firstTime:1,identity:1};
+  function corrGone(before,had){var out=[],was=regNames(before),now=regNames(profile),nowNeg=avoidList(profile).map(avoidLabel);
+    FIELDS.forEach(function(f){if(RKEYS.indexOf(f.k)<0&&before[f.k]&&!profile[f.k])out.push({t:f.label+'：'+(FACT_K[f.k]?'已去掉':'未限'),show:1,gk:f.k});});
+    if(before.feeMax&&!profile.feeMax)out.push({t:'月费上限：未限',show:1});
+    (before.avoid||[]).forEach(function(a){var lb=avoidLabel(a);if(nowNeg.indexOf(lb)<0)out.push({t:lb+'：已取消',show:1});});
+    if(was.some(function(r){return !regHas(now,r);})){if(now.length)out.push({t:'本次看：'+scopeLabel(),rk:'tCity'});else out.push({t:'本次看：全'+V4.region,show:1,rk:'tCity'});}
+    return out.filter(function(g){return !(had||[]).some(function(c){return c.t===g.t;});});}
   var _v4Send5=v4Send;v4Send=function(t){corr={type:'',field:'',from:'',to:''};mxIntent=null;mxIntentLast=null;if(typeof mxOn==='function'&&mxOn()){_v4Send5(t);return;}var pre=preIntent(t);if(pre&&NOEXTRACT[pre]){addUser(t);var tn=newTurn();tn.kind=pre;tn.text=t;typing(function(){buildTurn(tn);renderTurn(tn);if(tn.after)tn.after();});return;}
     if(pre==='market'){addUser(t);var before=snap(profile);lastNeg=[];extract(t);var pri=profile.priority;restore(profile,before);if(/学区/.test(pri||''))profile.priority=pri;var tm=newTurn();tm.kind='market';tm.text=t;typing(function(){buildTurn(tm);renderTurn(tm);});return;}
     if(pre==='stress'){addUser(t);var ts=newTurn();ts.kind='stress';ts.text=t;typing(function(){buildTurn(ts);renderTurn(ts);});return;}
@@ -1669,10 +1681,17 @@ return null;}
     if(mxIntent==='correction'&&!corr.type)corr={type:'model',field:'',from:'',to:''};
     if(mxIntent&&mxIntent!=='correction'&&(NOEXTRACT[mxIntent]||mxIntent==='market'||mxIntent==='stress')){var mk=mxIntent;mxIntent=null;if(mk==='market'){var pri=profile.priority;restore(profile,before);if(/学区/.test(pri||''))profile.priority=pri;}else{var ch0=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(ch0.length)showUndo(before,ch0);}var tx=newTurn();tx.kind=mk;tx.text=t;tx.mxIntent=mk;typing(function(){buildTurn(tx);renderTurn(tx);if(tx.after)tx.after();});return;}
     if(!corr.type&&typeof mxOn==='function'&&mxOn()&&!mxIntent&&/(不是.+是|改成|换成|我说的是|我是说|应该是|去掉|删掉|先不限|不限了|不要.+了$)/.test(tt))corr={type:'model',field:'',from:'',to:''};var isCorr=!!corr.type;
-    if(corr.type==='undo'){var btns=list.querySelectorAll('[data-undo]'),b=btns.length?btns[btns.length-1]:null;if(b){b.click();addAI('已撤销上一条记录。');}else addAI('没有可撤销的记录。');corr.type='';return;}
+    /* 撤销后会重出结果时，undoAction 自己会说「按撤销后的条件重出结果：」，这里不再多说一句 */
+    if(corr.type==='undo'){var btns=list.querySelectorAll('[data-undo]'),b=btns.length?btns[btns.length-1]:null;if(b){var willRerun=!!(lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]);b.click();if(!willRerun)addAI('已撤销上一条记录。');}else addAI('没有可撤销的记录。');corr.type='';return;}
     if(corr.type==='reset'){corr.type='';typing(function(){addAI('要清空本次对话的找房条件，还是清空所有内容？只清空找房条件的话，档案里的家庭、身份、资金信息和关注区域会保留。');quickAct([{label:'只清空本次找房条件',icon:'ti-trash',fn:function(){disablePickables();var bf=snap(profile);addUser('只清空本次找房条件');['tCity','tZone','tNb','district','school','dest','mode','time','budget','htype','beds','baths','sqftMin','age','parking','nearTransit','features','pet','view','mustHave','priority','tone','vibe','amenities','expo','floorPref','tenure','constr','taxMax'].forEach(function(k){profile[k]='';});profile.avoid=[];profile.avoidRaw=[];profile.feeMax=0;gDisliked={};pref();showUndo(bf,[{t:'本次找房条件已清空'}]);typing(function(){addAI(V4.opening);quickAct(needChips(),'live');});}},{label:'清空所有内容',icon:'ti-eraser',fn:function(){disablePickables();var bf=snap(profile);addUser('清空所有内容');FIELDS.forEach(function(f){profile[f.k]='';});profile.avoid=[];profile.avoidRaw=[];profile.feeMax=0;profile.watch=[];afford.income=0;afford.down=0;afford.debts=0;afford.payMax=0;gDisliked={};pref();showUndo(bf,[{t:'档案里的所有内容已清空'}]);typing(function(){addAI(V4.opening);quickAct(needChips(),'live');});}},{label:'都不清空',fn:function(){disablePickables();addAI('好，都保留。');}}],'pickable');});return;}
     var chips=diffChips(before,profile);lastNewKeys=chips.filter(function(c){return c.k;}).map(function(c){return c.k;});
-    if(isCorr&&corr.type&&lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]&&lastTurn.kind!=='need'&&!askConfirmTurn){var ch=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(ch.length)showUndo(before,ch);var what=corr.type==='replace'?('已把「'+(corr.from||'上一句的区域')+'」改成「'+corr.to+'」'):corr.type==='delete'?('已去掉「'+corr.from+'」'):corr.type==='clear'?'已清空':'已按你的修正更新档案';var lt=lastTurn;lt.newKeys=lastNewKeys;lt.noNew=!ch.length;corr.type='';typing(function(){addAI(what+'，按修正后的条件重新出一组：');rerunNew(lt);});return;}
+    /* 修正句、上一轮是结果块：直接按修正后的条件重出，不另出提示气泡，也不单独出「已记入档案」一行。
+       改了什么看「AI 理解为」：改动的条件高亮，被去掉的条件回显成「X：已去掉」，「撤销」在块末尾 */
+    if(isCorr&&corr.type&&lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]&&lastTurn.kind!=='need'&&!askConfirmTurn){var ch=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};})),gone=corrGone(before,ch);ch=ch.concat(gone);corr.type='';
+      /* 这句什么都没改（比如要改成的值本来就是这个）：不重出一模一样的结果，说一句就行 */
+      if(!ch.length&&JSON.stringify(snap(profile))===JSON.stringify(before)){typing(function(){addAI('这句没有改动档案里的条件，上面的结果仍然有效。');});return;}
+      if(!ch.length){gone=[{t:'档案已更新',show:1}];ch=gone.slice();}
+      var lt=lastTurn;lt.newKeys=lastNewKeys.concat(gone.filter(function(g){return g.rk;}).map(function(g){return g.rk;}));lt.gone=gone.filter(function(g){return g.show;}).map(function(g){return g.t;});lt.noNew=false;rerunNew(lt,{before:before,chips:ch});return;}
     corr.type='';_v4After5(t,before);};
   function needChips(){var out=[];if(!profile.dest)out.push({label:'在哪上班',icon:'ti-briefcase',fn:function(){v4Send('我在 '+V4.destEx[0]+' 上班，'+V4.rail+' 30 分钟内');}});if(!profile.kids)out.push({label:'有孩子要上学',icon:'ti-school',fn:function(){v4Send('孩子读小学，想找好学区');}});if(!profile.budget)out.push({label:'预算多少',icon:'ti-coin',fn:function(){v4Send('年收入 18 万、首付 20 万能买多少');}});if(profile.curCity)out.unshift({label:'按 '+profile.curCity+' 附近看社区',icon:'ti-map-pin',fn:function(){v4Send('看 '+profile.curCity+' 的社区');}});return out.length?out:V4.examples.map(function(x){return {label:x,fn:function(){v4Send(x);}};});}
 
@@ -2173,7 +2192,9 @@ return null;}
   var HARD_K={budget:1,htype:1,beds:1,baths:1,sqftMin:1,age:1,parking:1,features:1,nearTransit:1,pet:1},RANGE_K={dest:1,mode:1,time:1},AFF_L={'年收入':1,'首付':1,'月固定负债':1,'月供上限':1},lastTask=null;
   function schoolExcluded(n){var c=(schoolInfo(n)||{}).city||schoolCityGuess(n);return !!c&&regExcluded(c);}
   function chipKey(c){var lb=(c.t||'').split('：')[0],k='';FIELDS.forEach(function(f){if(f.label===lb)k=f.k;});return {lb:lb,k:k};}
-  var _condChips9=condChips;condChips=function(kind,pending,t){var out=_condChips9(kind,pending,t);if(!out.length)return out;
+  var _condChips9=condChips;condChips=function(kind,pending,t){var out=_condChips9(kind,pending,t),gone=(t&&t.gone)||[];if(!out.length&&!gone.length)return out;
+    /* 修正句去掉的条件（p5 的修正分支写在 t.gone）：档案里已经没有值了，这里补出来回显。块里已有同名的灰标（预算：未限、本次看：全大温）就直接把它高亮，不重复出 */
+    gone.forEach(function(g){var lb=g.split('：')[0],hit=null;out.forEach(function(c){if(!hit&&!c.neg&&(c.t||'').split('：')[0]===lb)hit=c;});if(hit)hit.cls='new';else out.push({t:g,cls:'new'});});
     var head=[],G={turn:[],range:[],hard:[],soft:[],aff:[],neg:[]};
     out.forEach(function(c){var ck=chipKey(c);
       if(/^(模型判意图|这句没抽到新条件)/.test(c.t)){head.push(c);return;}
