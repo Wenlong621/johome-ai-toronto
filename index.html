@@ -226,6 +226,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2166,7 +2167,7 @@ return null;}
   window.__v8={keys:function(){return turnKeys.slice();},crit:function(){return turnCrit.slice();}};
 
   /* ===================== p9：按 PRD 6.3 的流水线对齐 =====================
-     第 1 步「理解」的产出 = 任务单（本轮条件 / 范围 / 硬条件 / 软条件 / 不考虑），「AI 理解为」按任务单分组显示；
+     「AI 理解为」是给用户看的回显，按 本轮条件 / 范围 / 硬条件 / 软条件 / 不考虑 分组显示（内部的任务单在 p11，用户看不到）；
      第 3 步「圈」：商圈卡、学校卡同样先去掉排除区域（p3 补丁用到 schoolExcluded / regExcluded）；
      第 4 步「排」：商圈卡的打分同样给本轮条件加权（p3 补丁用到 TB） */
   var HARD_K={budget:1,htype:1,beds:1,baths:1,sqftMin:1,age:1,parking:1,features:1,nearTransit:1,pet:1},RANGE_K={dest:1,mode:1,time:1},AFF_L={'年收入':1,'首付':1,'月固定负债':1,'月供上限':1},lastTask=null;
@@ -2179,7 +2180,8 @@ return null;}
       if(c.neg){G.neg.push(c);return;}
       if(ck.lb==='本次看'||ck.lb==='关注区域'||RANGE_K[ck.k]){G.range.push(c);return;}
       if(c.cls==='new'){G.turn.push(c);return;}
-      if(HARD_K[ck.k]||ck.lb==='月费上限'||(ck.lb==='商圈必备'&&kind==='district')){G.hard.push(c);return;}
+      /* 商圈必备在所有区域类卡里都用来圈；学段、学校类型、评分下限在学校卡里用来圈（p11） */
+      if(HARD_K[ck.k]||ck.lb==='月费上限'||(ck.lb==='商圈必备'&&REG_K[kind])||(kind==='school'&&SCH_HARD[ck.k])){G.hard.push(c);return;}
       if(AFF_L[ck.lb]){G.aff.push(c);return;}
       G.soft.push(c);});
     /* 写不进档案字段的本轮条件（模型返回的 criteria）也算本轮 */
@@ -2375,6 +2377,252 @@ return null;}
   function pfAskHead(t){var say=t.asks.map(function(a){return ASK_SAY[a.field]||a.label;}),what=say.length>3?'下面几项':say.length>1?(say.slice(0,-1).join('、')+'和'+say[say.length-1]):say[0],commute=profile.dest&&t.asks.some(function(a){return a.field==='time'||a.field==='mode';});
     return (commute?('去 '+esc(profile.dest)+' 上班的话，'):'')+'再告诉我'+what+'，'+(ASK_DO[t.kind]||'我好给你更准的结果')+'：';}
   window.__v10={state:RK,why:rkWhy,system:rkSystem,soft:rkSoft,hard:rkHard};
+
+  /* ===================== p11：区域类卡也「先圈后排」（研发版 PRD 7.2 / 7.3 / 7.4） =====================
+     圈：范围（城市 / 生活圈 / 社区、排除区域）∩ 空间条件（通勤等时圈、商圈必备、目标学校的对口范围、目标商圈周边）+ 对象自身的属性（学段、学校类型、评分下限）
+     排：本轮条件 → 软偏好；档案里有预算和房型时各区域层都算覆盖率；社区卡和学校卡里覆盖率为 0 的排最后但不剔除
+     不够：区域类候选为 0 时，放掉最后说的那个空间条件再圈一次，并在导语说明；范围、排除区域和自身属性不放
+     任务单：推荐引擎的内部输入单，不给用户看，记在回合上，右上角「…」调试页里可查
+     示例数据说明：社区与商圈的远近按示例坐标算（同城 2.5 公里内），学校的对口范围沿用原来的示例映射 */
+  var SP_R=2.5,REG_K={city:1,zone:1,nb:1,district:1,school:1},SCH_HARD={kids:1,schoolPref:1,schoolMin:1},CARD_N={city:3,zone:3,nb:4,district:3,school:4},NOUN11={zone:['生活圈','个'],city:['城市','个'],nb:['社区','个'],school:['学校','所'],district:['商圈','个']};
+  var SP_SEQ={dest:0,school:0,district:0},SP_MUST=[],spN=0,spLast={dest:'',school:'',district:'',must:''},T11=null;
+  /* 记下每个空间条件是第几个说的：候选为 0 时从最后说的开始放 */
+  function spTrack(){var p=profile;['dest','school','district'].forEach(function(k){var v=p[k]||'';if(v!==spLast[k]){spLast[k]=v;SP_SEQ[k]=v?(++spN):0;}});
+    var m=p.mustHave||'';if(m!==spLast.must){var old=SP_MUST;SP_MUST=m.split('、').filter(Boolean).map(function(c){var i;for(i=0;i<old.length;i++)if(old[i].c===c)return old[i];return {c:c,n:++spN};});spLast.must=m;}}
+
+  /* ---------- 几何与归属（示例数据） ---------- */
+  function kmBetween(a,b){var dy=(a[0]-b[0])*111,dx=(a[1]-b[1])*111*Math.cos(a[0]*Math.PI/180);return Math.sqrt(dx*dx+dy*dy);}
+  /* 商圈中心：示例坐标表里有同名地点就用它，地图上的半径圈和「附近社区」用同一个点 */
+  var _districtCtr11=districtCtr;districtCtr=function(city,name){return V4.nbGeo[name]||_districtCtr11(city,name);};
+  var NB_ALL=null,NB_BY={},NEAR={};
+  function allNbs(){if(!NB_ALL){NB_ALL=poolPairs();NB_ALL.forEach(function(pr){(NB_BY[pr[1]]=NB_BY[pr[1]]||[]).push(pr[0]);});}return NB_ALL;}
+  function cityNbs(c){allNbs();return NB_BY[c]||[];}
+  function regionNbs(n,useZone){if(useZone){var zz=(typeof ZONES!=='undefined')&&ZONES[n];return zz?zz.nbs.map(function(q){return q[0];}):[];}return cityNbs(n);}
+  function nbsNear(d){var k=d.city+'|'+d.name;if(NEAR[k])return NEAR[k];var ctr=districtCtr(d.city,d.name),out=[];cityNbs(d.city).forEach(function(n){if(n===d.name||kmBetween(nbGeo(n,d.city),ctr)<=SP_R)out.push(n);});if(!out.length)out=nbsNearDistrict(d.name,d.city);NEAR[k]=out;return out;}
+  function dOK(d,cat){var poi=d.poi||(d.poi=distPOI(d.name,d.city,d.line));return (poi[cat]||0)>=(POI_MIN[cat]||2);}
+  /* 必备项齐全的商圈 → 落在它半径内的社区（社区名 → 商圈名） */
+  function mustNbSet(cats){var s={};allDistricts().forEach(function(d){if(regExcluded(d.name)||regExcluded(d.city)||!cats.every(function(c){return dOK(d,c);}))return;nbsNear(d).forEach(function(n){if(!s[n])s[n]=d.name;});});return s;}
+
+  /* ---------- 空间条件 ---------- */
+  /* 城市卡 / 生活圈卡不追问：缺时长或方式时这一轮不按等时圈圈 */
+  function isoReady(kind){var p=profile;if(!p.dest)return false;return (kind==='zone'||kind==='city')?!!(p.time&&p.mode):true;}
+  function isoLabel(){var p=profile;return '到 '+p.dest+' '+(p.mode?(p.mode+' '):'')+(p.time||'45分钟')+'内';}
+  /* 等时圈里的社区：示例名单之外，再按地图上画的等时圈半径补全，让城市 / 生活圈 / 指定范围的判断和地图一致。
+     全域找社区时（wide = false）仍只用示例名单，保持原来的推荐质量 */
+  var ISO_WIDE=true,ISO_C={};
+  function isoSet(p,wide){var mins=parseInt(((p.time||'45').match(/\d+/)||[45])[0],10),drive=/开车/.test(p.mode||''),key=destKeyOf(p)+'|'+mins+'|'+(drive?1:0)+'|'+(wide?1:0);if(ISO_C[key])return ISO_C[key];var s={};isoNbs(p).forEach(function(r){s[r[0]]=1;});
+    if(wide){var dg=destGeo(p),rk=mins*(drive?0.55:0.38);allNbs().forEach(function(pr){if(!s[pr[0]]&&kmBetween(nbGeo(pr[0],pr[1]),dg)<=rk)s[pr[0]]=1;});}
+    return (ISO_C[key]=s);}
+  function spConds(kind){var p=profile,cs=[],wide=ISO_WIDE;
+    if(isoReady(kind))cs.push({id:'dest',n:SP_SEQ.dest,label:isoLabel(),set:function(){return isoSet(p,wide);}});
+    if(kind==='nb'&&p.school)cs.push({id:'school',n:SP_SEQ.school,label:p.school+' 的'+V4.catchWord+'范围',set:function(){var s={};(schoolNbs(p.school)||[]).forEach(function(n){s[n]=1;});return s;}});
+    if(kind==='nb'&&p.district)cs.push({id:'district',n:SP_SEQ.district,label:p.district.replace(/、/g,' / ')+' 商圈周边',set:function(){var s={};p.district.split('、').filter(Boolean).forEach(function(dn){nbsNear({name:dn,city:distCity(dn)}).forEach(function(n){s[n]=1;});});return s;}});
+    SP_MUST.forEach(function(m){cs.push({id:'must',cat:m.c,n:m.n,label:'商圈必备「'+m.c+'」'});});
+    return cs.sort(function(a,b){return a.n-b.n;});}
+  /* 圈：items 候选；nbsOf(it) 这个对象对应哪些社区；selfMust(it,cats) 商圈卡用自己的店铺数判断必备项；keyOf(it) 取名字。
+     对象里有任一社区同时满足全部空间条件就入围；候选为 0 时从最后说的条件开始放 */
+  function circle(kind,items,nbsOf,selfMust,keyOf){var act=spConds(kind),dropped=[],share={},near={},pool;
+    function run(){var cats=act.filter(function(c){return c.cat;}).map(function(c){return c.cat;}),mset=(cats.length&&!selfMust)?mustNbSet(cats):null,sets=act.filter(function(c){return !c.cat;}).map(function(c){return c.set();});share={};near={};
+      return items.filter(function(it){if(cats.length&&selfMust&&!selfMust(it,cats))return false;if(!mset&&!sets.length)return true;
+        var nbs=nbsOf(it)||[],hit=nbs.filter(function(n){return (!mset||mset[n])&&sets.every(function(s){return s[n];});});if(!hit.length)return false;
+        var key=keyOf(it);share[key]=hit.length/nbs.length;if(mset)near[key]=mset[hit[0]];return true;});}
+    pool=run();while(items.length&&!pool.length&&act.length){dropped.unshift(act.pop().label);pool=run();}
+    return {pool:pool,dropped:dropped,used:act.map(function(c){return c.label;}),cats:act.filter(function(c){return c.cat;}).map(function(c){return c.cat;}),iso:act.some(function(c){return c.id==='dest';}),share:share,near:near};}
+
+  /* ---------- 预算覆盖率：各区域层同一口径（该房型在售里价格在预算内的占比；没有预算或房型时不算） ---------- */
+  var COVC={sig:'',m:{}};
+  function covWhere(key,fn){var p=profile,br=budgetRange(p.budget);if(!br||!p.htype)return null;var pool=buildPool(),sig=p.budget+'|'+p.htype+'|'+pool.length;if(COVC.sig!==sig)COVC={sig:sig,m:{}};if(COVC.m[key]!==undefined)return COVC.m[key];
+    var tot=0,ok=0,i,l;for(i=0;i<pool.length;i++){l=pool[i];if(l.clone||!fn(l)||!typeOK(l,p.htype))continue;tot++;if(l.price<=br[1])ok++;}return (COVC.m[key]=tot?Math.round(ok/tot*100):0);}
+  function inSet(names){var s={};(names||[]).forEach(function(n){s[n]=1;});return function(l){return !!s[l.nb];};}
+  function covCity(c){return covWhere('c:'+c,function(l){return l.city===c;});}
+  function covZone(z){return covWhere('z:'+z,inSet(regionNbs(z,true)));}
+  function covDistrict(d){return covWhere('d:'+d.name,inSet(nbsNear(d)));}
+  function covSchool(n){return covWhere('s:'+n,inSet(schoolNbs(n)));}
+  function scopeCities(all){var p=profile,s={},any=false;function add(c){if(c){s[c]=1;any=true;}}(p.tCity||'').split('、').filter(Boolean).forEach(add);
+    if(all){(p.tZone||'').split('、').filter(Boolean).forEach(function(z){var zz=(typeof ZONES!=='undefined')&&ZONES[z];if(zz)(zz.cities&&zz.cities.length?zz.cities:[zz.prim]).forEach(add);});(p.tNb||'').split('、').filter(Boolean).forEach(function(n){add(nbCity(n));});}
+    return any?s:null;}
+
+  /* ---------- 城市 / 生活圈：范围 + 空间条件圈；区域里有任一社区满足就入围，满足的社区占比交给排序 ---------- */
+  var _rkRegionPool11=rkRegionPool;rkRegionPool=function(useZone,pf,t){var base=_rkRegionPool11(useZone,pf,t),kind=useZone?'zone':'city',sc=useZone?scopeCities(false):null,scoped=false;
+    if(sc){var inSc=base.filter(function(o){var zz=ZONES[o.n];return zz&&(zz.cities&&zz.cities.length?zz.cities:[zz.prim]).some(function(c){return sc[c];});});if(inSc.length){base=inSc;scoped=true;}}
+    var r=circle(kind,base,function(o){return regionNbs(o.n,useZone);},null,function(o){return o.n;});
+    r.pool.forEach(function(o){o._cov=useZone?covZone(o.n):covCity(o.n);o._share=r.share[o.n];o._shareLb=r.used.join('、');
+      /* 没有模型时的默认顺序：用了空间条件就先按满足的社区占比排，再按预置顺序 */
+      if(r.used.length)o.s=(o.s||0)+Math.round((r.share[o.n]||0)*100)*1000;});
+    t.circ={kind:kind,dropped:r.dropped,used:r.used,cats:r.cats,iso:r.iso,share:r.share,total:base.length,pool:r.pool.length,scoped:scoped};return r.pool;};
+
+  /* ---------- 社区：范围 ∩ 空间条件 ---------- */
+  nbCandidates=function(p){var t=RK.cur,rows=[],seen={},scope=false,conds=spConds('nb');lastIsoMiss=false;
+    function add(r){if(r&&!seen[r[0]]){seen[r[0]]=1;rows.push(r);}}
+    if(p.tNb)p.tNb.split('、').forEach(function(n){add(rowFor(n));scope=true;});
+    if(p.tZone)p.tZone.split('、').forEach(function(z){((typeof ZONES!=='undefined'&&ZONES[z])?ZONES[z].nbs:[]).forEach(function(q){add(rowFor(q[0],q[1]));});scope=true;});
+    if(p.tCity)p.tCity.split('、').forEach(function(c){(cityData(c).nbs||[]).forEach(add);scope=true;});
+    if(!scope&&conds.length){if(isoReady('nb'))isoNbs(p).forEach(add);allNbs().forEach(function(pr){add(rowFor(pr[0],pr[1]));});}
+    if(!scope&&!conds.length){var c,nat=/自然环境/.test(p.priority||''),natRe=/公园|绿|山|湖|海|自然|步道|河|森林|树|户外|海滨|湖滨|渔村|小镇/;for(c in CITY)(CITY[c].nbs||[]).forEach(function(n,i){if(i<2||(nat&&natRe.test(n[3]||'')))add(n);});}
+    ISO_WIDE=scope;var r;try{r=circle('nb',rows,function(row){return [row[0]];},null,function(row){return row[0];});}finally{ISO_WIDE=true;}
+    if(p.dest&&!r.iso)lastIsoMiss=true;
+    if(t)t.circ={kind:'nb',dropped:r.dropped,used:r.used,cats:r.cats,iso:r.iso,near:r.near,total:rows.length,pool:r.pool.length,scoped:scope};
+    return r.pool;};
+  /* 预算内没有在售的社区不再剔除，排到最后（见下面 rkOrder）；全都没有时导语说明 */
+  hardPool=function(rows,t){rows=rows.filter(function(r){return !regExcluded(r[0])&&!regExcluded(r._city);});t.noSupply=rows.length>0&&rows.every(function(r){return r._cov===0;});return rows;};
+
+  /* ---------- 学校：学段、学校类型、评分下限是硬条件；再套范围和空间条件 ---------- */
+  var SC_ALL=null,SC_MAP={};
+  function scProgs(s){var o=[];if(/\bIB\b/.test(s))o.push('IB');if(/\bAP\b/.test(s))o.push('AP');if(/\bFI\b|French|法语/i.test(s))o.push('法语沉浸');if(/Mandarin|中文双语|中英双语/i.test(s))o.push('中文双语');if(/Montessori|蒙特梭利/i.test(s))o.push('蒙特梭利');if(/Gifted|天才|MACC|Mini School/i.test(s))o.push('天才班');if(/艺术|\bArts\b/i.test(s))o.push('艺术特色');if(/体育|Athlet/i.test(s))o.push('体育特色');if(/STEM/i.test(s))o.push('STEM 特色');return o;}
+  function scSeg(name,sub,hint){var s=name+' '+sub;if(/K-12|中小学/i.test(s))return '小学、中学';if(/小学|Elementary|Junior|Primary|Public School|\bPS\b/i.test(s))return '小学';if(/中学|Secondary|\bSec\b|High|Collegiate|\bCI\b|\bSS\b/i.test(s))return '中学';return hint||'中学';}
+  function scAdd(name,sub,score,course,hint,city){if(!name||SC_MAP[name])return;var txt=(sub||'')+' '+(course||''),num=parseFloat(score);SC_MAP[name]={name:name,sub:sub||'',scoreTxt:score||'—',course:course||'—',seg:scSeg(name,sub||'',hint),type:/天主教|Catholic|教会|基督/i.test(txt)?'教会':(/私立|Private|Independent/i.test(txt)?'私校':'公校'),gender:/男校/.test(txt)?'男校':(/女校/.test(txt)?'女校':'混校'),score:isNaN(num)?null:num,progs:scProgs(txt),city:city||''};}
+  function scAll(){if(SC_ALL)return SC_ALL;var seg,k,c;
+    for(seg in SCHOOL_POOL)for(k in SCHOOL_POOL[seg])SCHOOL_POOL[seg][k].forEach(function(x){scAdd(x[0],x[1],x[2],x[3],seg==='学龄前'?'小学':seg,'');});
+    for(c in CX){if(c==='_def')continue;(CX[c].schools||[]).forEach(function(g){(g.items||[]).forEach(function(it){scAdd(it[0],g.type==='私立'?'私立':('公立 · '+g.type),it[1],it[2],g.type==='私立'?'':g.type,c);});});}
+    if(typeof CATHOLIC!=='undefined')for(c in CATHOLIC)CATHOLIC[c].forEach(function(x){scAdd(x[0],x[2]||'天主教',x[1],'天主教',/小学/.test(x[2]||'')?'小学':'中学',c);});
+    SC_ALL=Object.keys(SC_MAP).map(function(n){var s=SC_MAP[n];if(!s.city)s.city=(schoolInfo(n)||{}).city||schoolCityGuess(n);return s;});return SC_ALL;}
+  function scBy(name){scAll();return SC_MAP[name]||null;}
+  /* 安省的天主教教育局属于公立体系，BC 的教会学校是私校 */
+  function scTypeOK(s,pref){var tp=[],gd=[];(pref||'').split('、').forEach(function(x){if(SC_G1.indexOf(x)>=0)tp.push(x);else if(SC_G2.indexOf(x)>=0)gd.push(x);});
+    if(tp.length&&tp.indexOf(s.type)<0&&!(s.type==='教会'&&tp.indexOf(IS_TO?'公校':'私校')>=0))return false;if(gd.length&&gd.indexOf(s.gender)<0)return false;return true;}
+  function scMin(){var m=(profile.schoolMin||'').match(/\d+(?:\.\d+)?/);return m?parseFloat(m[0]):0;}
+  function schoolPool(t){var p=profile,seg=/小学|学龄前/.test(p.kids||'')?'小学':'中学',sc=scopeCities(true),mn=scMin();
+    var base=scAll().filter(function(s){return s.seg.indexOf(seg)>=0&&!schoolExcluded(s.name)&&!(t.excludeNames&&t.excludeNames.indexOf(s.name)>=0);}),a1=base.filter(function(s){return scTypeOK(s,p.schoolPref);}),a2=a1.filter(function(s){return !mn||(s.score!==null&&s.score>=mn);}),a3=sc?a2.filter(function(s){return sc[s.city];}):a2;
+    var r=circle('school',a3,function(s){return schoolNbs(s.name);},null,function(s){return s.name;});
+    t.circ={kind:'school',dropped:r.dropped,used:r.used,cats:r.cats,iso:r.iso,near:r.near,total:a3.length,pool:r.pool.length,scoped:!!sc,attr:{seg:seg,type:p.schoolPref||'',min:p.schoolMin||'',n0:base.length,n1:a1.length,n2:a2.length,n3:a3.length}};
+    return r.pool.map(function(s){var row=[s.name,s.sub||(s.type+' · '+seg),s.scoreTxt,s.course];row._cov=covSchool(s.name);row._s=s;return row;});}
+  function schoolCmp(a,b){var pr=(profile.schoolProg||'').split('、').filter(Boolean);function m(x){return pr.filter(function(k){return x._s.progs.indexOf(k)>=0;}).length;}return (m(b)-m(a))||((b._s.score||0)-(a._s.score||0));}
+
+  /* ---------- 商圈：范围 + 等时圈 + 必备店铺（必备项一次放掉最后说的一项） ---------- */
+  function districtPool(t){var sc=scopeCities(true),cands=allDistricts().filter(function(d){return !regExcluded(d.name)&&!regExcluded(d.city)&&!(t.excludeNames&&t.excludeNames.indexOf(d.name)>=0);}).map(function(d){d.poi=distPOI(d.name,d.city,d.line);d.type=distType(d.name,d.line);return d;}),scoped=false;
+    if(sc){var inSc=cands.filter(function(d){return sc[d.city];});if(inSc.length){cands=inSc;scoped=true;}}
+    var r=circle('district',cands,function(d){return nbsNear(d);},function(d,cats){return cats.every(function(c){return dOK(d,c);});},function(d){return d.name;});
+    r.pool.forEach(function(d){d._cov=covDistrict(d);});
+    t.circ={kind:'district',dropped:r.dropped,used:r.used,cats:r.cats,iso:r.iso,total:cands.length,pool:r.pool.length,scoped:scoped};return r.pool;}
+
+  /* ---------- 排序入口：学校卡 / 商圈卡换成上面圈好的池；社区卡和学校卡里覆盖率为 0 的排最后但不剔除 ---------- */
+  var _rkOrder11=rkOrder;rkOrder=function(kind,items,nameFn,n,fbCmp,factFn,main,setWhy){var t=RK.cur;
+    if(main&&t&&kind==='school'&&t.kind==='school'){items=schoolPool(t);fbCmp=schoolCmp;}
+    if(main&&t&&kind==='district'&&t.kind==='district')items=districtPool(t);
+    if(kind!=='nb'&&kind!=='school')return _rkOrder11(kind,items,nameFn,n,fbCmp,factFn,main,setWhy);
+    var pos=items.filter(function(x){return x._cov!==0;}),zero=items.filter(function(x){return x._cov===0;});
+    if(!zero.length||pos.length>=n)return _rkOrder11(kind,pos,nameFn,n,fbCmp,factFn,main,setWhy);
+    var out=_rkOrder11(kind,pos.concat(zero),nameFn,n,fbCmp,factFn,main,setWhy);
+    return out.filter(function(x){return x._cov!==0;}).concat(out.filter(function(x){return x._cov===0;}));};
+
+  /* ---------- 交给模型的事实字段：各区域层补上覆盖率、满足空间条件的社区占比 ---------- */
+  var ISO_T={};
+  function isoTier(nbs){var dk=destKeyOf(profile),ts=['30分钟','45分钟','60分钟'],best='';if(typeof BSET==='undefined'||!BSET[dk])return '';if(!ISO_T[dk]){ISO_T[dk]={};ts.forEach(function(tk){(BSET[dk][tk]||[]).forEach(function(r){if(!ISO_T[dk][r[0]])ISO_T[dk][r[0]]=tk;});});}
+    nbs.forEach(function(n){var tk=ISO_T[dk][n];if(tk&&(!best||ts.indexOf(tk)<ts.indexOf(best)))best=tk;});return best;}
+  function factCov(o,cov,lb){if(cov!==null&&cov!==undefined)o[lb||'预算内房源占比']=cov+'%';}
+  function regFacts(o,x,useZone){factCov(o,x._cov!==undefined?x._cov:(useZone?covZone(x.n):covCity(x.n)));var p=profile;
+    if(x._share!==undefined&&x._shareLb)o['满足「'+x._shareLb+'」的社区占比']=Math.round(x._share*100)+'%';
+    else if(p.dest&&!isoReady(useZone?'zone':'city')){var tr=isoTier(regionNbs(x.n,useZone));if(tr)o['到 '+p.dest+' 通勤']='部分社区 '+tr+'内可达';}}
+  var _rkFactCity11=rkFactCity;rkFactCity=function(x){var o=_rkFactCity11(x);regFacts(o,x,false);return o;};
+  var _rkFactZone11=rkFactZone;rkFactZone=function(x){var o=_rkFactZone11(x);regFacts(o,x,true);return o;};
+  var _rkFactNb11=rkFactNb;rkFactNb=function(r){var o=_rkFactNb11(r),c=RK.cur&&RK.cur.circ;if(lastIsoMiss)delete o['通勤'];if(c&&c.near&&c.near[r[0]])o['附近商圈']=c.near[r[0]]+'（'+c.cats.join('、')+'齐全）';return o;};
+  var _rkFactDistrict11=rkFactDistrict;rkFactDistrict=function(d){var o=_rkFactDistrict11(d);factCov(o,d._cov!==undefined?d._cov:covDistrict(d),'周边预算内房源占比');return o;};
+  var _rkFactSchool11=rkFactSchool;rkFactSchool=function(x){var o=_rkFactSchool11(x),s=x._s||scBy(x[0]);if(s){o['学校类型']=s.type+(s.gender!=='混校'?(' · '+s.gender):'');if(s.progs.length)o['课程项目']=s.progs.join('、');if(s.city)o['城市']=s.city;}factCov(o,x._cov!==undefined?x._cov:covSchool(x[0]),V4.catchWord+'范围内预算内房源占比');return o;};
+  var _rkSystem11=rkSystem;rkSystem=function(){return _rkSystem11()+'\n8. card 是社区或学校时有固定的先后：「预算内房源占比」为 0% 的排最后；其余先按本轮条件，再按预算内房源占比高低，再按其他软条件。card 是城市、生活圈、商圈时，预算内房源占比和「满足…的社区占比」只是排序参考的事实之一，占比低的往后排。预算和房型在区域类卡里不是筛选条件。';};
+
+  /* ---------- 没有模型理由时的模板理由：补上覆盖率、空间条件 ---------- */
+  function whyAdd(s,extra,front){var i=s.indexOf('：');if(i<0)return s;var parts=s.slice(i+1).split('、').filter(Boolean);extra=extra.filter(function(x){return x&&parts.indexOf(x)<0;});if(!extra.length)return s;parts=front?extra.concat(parts):parts.slice(0,Math.max(0,3-extra.length)).concat(extra);return s.slice(0,i+1)+parts.slice(0,3).join('、');}
+  var _pickWhy11=pickWhy;pickWhy=function(name,useZone){var s=_pickWhy11(name,useZone),c=T11&&T11.circ,ex=[],cov=useZone?covZone(name):covCity(name),front=false;
+    if(c&&c.used.length&&c.share&&c.share[name]!==undefined){var pc=Math.round(c.share[name]*100)+'% 的社区',mt=c.cats.length?('靠近「'+c.cats.join('和')+'」齐全的商圈'):'';ex.push(pc+(c.iso?(isoLabel()+(mt?('且'+mt):'')):mt));front=TB('dest','time','mode')>1||mustNew(T11);}
+    if(cov!==null)ex.push(cov>0?('预算内房源占 '+cov+'%'):'预算内暂无在售');
+    return whyAdd(s,ex,front);};
+  /* 商圈必备不在档案字段表里，单独判断是不是这句话刚说的 */
+  function mustNew(t){return !!t&&t.spN0!==undefined&&SP_MUST.some(function(m){return m.n>t.spN0;});}
+  var _whyNb11=whyNb;whyNb=function(name,t){var s=_whyNb11(name,t),c=(t&&t.circ)||(T11&&T11.circ),ex=[];if(c&&c.near&&c.near[name])ex.push('近 '+c.near[name]+' 商圈');return whyAdd(s,ex,mustNew(t||T11));};
+  whySchool=whyTurnFirst(function(name){var p=profile,parts=[],s=scBy(name)||{progs:[]},inf=schoolInfo(name)||{},cov=covSchool(name),pr=(p.schoolProg||'').split('、').filter(Boolean),hit=pr.filter(function(k){return s.progs.indexOf(k)>=0;});
+    if(hit.length)parts.push('有 '+hit.join('、')+' 项目');
+    if(s.score!==null&&s.score!==undefined)parts.push('Fraser 评分 '+s.score);
+    if(cov!==null)parts.push(cov>0?(V4.catchWord+'范围内预算内房源占 '+cov+'%'):(V4.catchWord+'范围内预算内暂无在售'));
+    if(/私校|教会|男校|女校/.test(p.schoolPref||'')&&s.type)parts.push(s.type+(s.gender!=='混校'?(' · '+s.gender):''));
+    whyFill(parts,[inf.course,inf.sub]);
+    return name+'：'+parts.slice(0,3).join('、');});
+  var _whyDistrict11=whyDistrict;whyDistrict=function(name){var s=_whyDistrict11(name),d=allDistricts().filter(function(x){return x.name===name;})[0],cov=d?covDistrict(d):null;return cov===null?s:whyAdd(s,[cov>0?('周边预算内房源占 '+cov+'%'):'周边预算内暂无在售'],false);};
+
+  /* ---------- 导语里要交代的话：放掉了哪个空间条件、候选不足出卡张数、覆盖率为 0 的排在最后 ---------- */
+  var _pickLead11=pickLead;pickLead=function(t){var s=_pickLead11(t),c=t.circ,k=t.pick.kind,nn=NOUN11[k],note='',n=t.pick.names.length,zero=0;
+    s=s.replace(/^[^<]*?先按区域本身排。/,'').replace(/没有商圈能同时满足全部，先放掉了「[^」]+」。/,'');
+    if(c&&c.kind===k){if(c.dropped.length)note+='同时满足全部条件的'+nn[0]+'没有，先放掉了'+c.dropped.map(function(x){return /^商圈必备/.test(x)?x:('「'+x+'」');}).join('、')+'。';
+      /* 圈的时候确实筛掉了候选，才交代「只有 N 个」 */
+      if(n<CARD_N[k]&&!c.dropped.length&&c.pool<(c.attr?c.attr.n0:c.total))note+='符合条件的'+nn[0]+'只有 '+n+' '+nn[1]+'。';}
+    if(k==='nb'||k==='school'){t.pick.names.forEach(function(nm){if((k==='nb'?nbCoverage(nm,nbCity(nm)):covSchool(nm))===0)zero++;});if(zero&&zero<n)note+='后 '+zero+' '+nn[1]+(k==='nb'?'社区':('学校的'+V4.catchWord+'范围内'))+'预算内暂时没有在售的'+typeCN(profile.htype)+'，排在最后。';}
+    return note+s;};
+
+  /* ---------- 档案字段：学校类型偏好（公校 / 私校 / 教会；男校 / 女校 / 混校）、学校评分下限、课程项目偏好 ---------- */
+  var SC_G1=['公校','私校','教会'],SC_G2=['男校','女校','混校'];
+  (function(){var i,at=-1;for(i=0;i<FIELDS.length;i++)if(FIELDS[i].k==='schoolPref')at=i;if(at<0)at=FIELDS.length-1;
+    FIELDS.splice(at+1,0,{k:'schoolMin',label:'学校评分下限',group:'家庭与学校'},{k:'schoolProg',label:'课程项目偏好',group:'家庭与学校'});
+    PF_GROUPS.forEach(function(g){if(g[0]==='家庭与学校'&&g[1].indexOf('schoolMin')<0)g[1].push('schoolMin','schoolProg');});
+    if(typeof MX_FREE!=='undefined'){MX_FREE.schoolPref=['公校','私校','教会','男校','女校','混校','私校、女校'];MX_FREE.schoolMin=['7分以上','8分以上'];MX_FREE.schoolProg=['IB','AP','法语沉浸','中文双语','天才班','蒙特梭利','艺术特色','体育特色','STEM 特色','IB、法语沉浸'];}})();
+  function scSet(k,v){if((profile[k]||'')!==v)profile[k]=v;}
+  /* 旧取值归一：公立高分 → 公校，私立 → 私校，IB 课程 / French Immersion 挪到课程项目偏好 */
+  function scNorm(){var p=profile,pg=(p.schoolProg||'').split('、').filter(Boolean),out=[],m;
+    (p.schoolPref||'').split(/[、\/，,]+/).forEach(function(x){x=(x||'').trim();if(!x||x==='都可以')return;if(/^IB/i.test(x)){if(pg.indexOf('IB')<0)pg.push('IB');return;}if(/french|法语/i.test(x)){if(pg.indexOf('法语沉浸')<0)pg.push('法语沉浸');return;}
+      var y=/私/.test(x)?'私校':/公/.test(x)?'公校':/教会|天主/.test(x)?'教会':/男校/.test(x)?'男校':/女校/.test(x)?'女校':/混校/.test(x)?'混校':'';if(y&&out.indexOf(y)<0)out.push(y);});
+    scSet('schoolPref',SC_G1.concat(SC_G2).filter(function(x){return out.indexOf(x)>=0;}).join('、'));scSet('schoolProg',pg.join('、'));
+    if(p.schoolMin){m=(''+p.schoolMin).match(/\d+(?:\.\d+)?/);scSet('schoolMin',m?(m[0]+'分以上'):'');}}
+  var SC_PROG_RX=[['IB',/\bIB\b/i],['AP',/\bAP\b/],['法语沉浸',/french\s*immersion|法语沉浸|法语浸入|\bFI\b/i],['中文双语',/中文双语|中英双语|普通话双语|mandarin/i],['天才班',/天才班|资优|gifted|MACC|迷你学校|mini\s*school/i],['蒙特梭利',/蒙特梭利|蒙氏|montessori/i],['艺术特色',/艺术|美术|音乐/],['体育特色',/体育/],['STEM 特色',/STEM|编程|机器人/i]];
+  /* 规则回退时的抽取（只看不带否定词的分句）：说了具体分数才写评分下限；只说「好学校 / 名校」不写类型，记为看重学区 */
+  function scRules(t,before){var p=profile,lg=p.schoolPref||'',pg0=(p.schoolProg||'').split('、').filter(Boolean);
+    if(lg!==(before.schoolPref||'')&&/^(公立高分|私立|IB 课程|French Immersion)$/.test(lg)){p.schoolPref=before.schoolPref||'';
+      if(lg==='IB 课程'&&pg0.indexOf('IB')<0)pg0.push('IB');if(lg==='French Immersion'&&pg0.indexOf('法语沉浸')<0)pg0.push('法语沉浸');if(pg0.length)p.schoolProg=pg0.join('、');
+      if(lg==='公立高分'&&!/公立|公校/.test(t)&&!/学区/.test(p.priority||''))p.priority=p.priority?(p.priority+'、学区'):'学区';}
+    scNorm();
+    if(/不限评分|评分不限|不看评分|评分无所谓|不限分数/.test(t))scSet('schoolMin','');
+    if(/不限(学校)?类型|公校私校都(行|可以)|公立私立都(行|可以)/.test(t))scSet('schoolPref','');
+    t.split(/[，,。；;！!？?\n]/).forEach(function(s){if(!s||NEG_RE.test(s))return;var cur=(p.schoolPref||'').split('、').filter(Boolean),pg=(p.schoolProg||'').split('、').filter(Boolean),g1=[],g2=[],m,ctx=/学校|小学|中学|高中|学区|评分|fraser/i.test(t);
+      if(/公立|公校/.test(s))g1.push('公校');if(/私立|私校/.test(s))g1.push('私校');if(/教会学校|教会|天主教|catholic/i.test(s))g1.push('教会');
+      if(/男校/.test(s))g2.push('男校');if(/女校/.test(s))g2.push('女校');if(/混校|男女同校/.test(s))g2.push('混校');
+      if(g1.length)cur=cur.filter(function(x){return SC_G1.indexOf(x)<0;}).concat(g1);if(g2.length)cur=cur.filter(function(x){return SC_G2.indexOf(x)<0;}).concat(g2);
+      if(g1.length||g2.length)scSet('schoolPref',SC_G1.concat(SC_G2).filter(function(x){return cur.indexOf(x)>=0;}).join('、'));
+      m=s.match(/(\d(?:\.\d)?)\s*分\s*(?:以上|及以上|起|\+)/)||(/评分|fraser|排名/i.test(s)?s.match(/(\d(?:\.\d)?)\s*(?:以上|\+)/):null);
+      if(m&&ctx&&+m[1]>=5&&+m[1]<=10)scSet('schoolMin',m[1]+'分以上');
+      SC_PROG_RX.forEach(function(r){if(!r[1].test(s))return;if(/^(艺术|体育)/.test(r[0])&&!/学校|课程|项目|特色|特长/.test(s))return;if(pg.indexOf(r[0])<0)pg.push(r[0]);});
+      scSet('schoolProg',pg.join('、'));});}
+  var _extract11=extract;extract=function(t){var b={schoolPref:profile.schoolPref||''};_extract11(t);if(t&&typeof t==='string'){try{scRules(t,b);}catch(e){}}};
+  var _mxApply11=mxApply;mxApply=function(res,t){_mxApply11(res,t);scNorm();};
+  var _mxSystem11=mxSystem;mxSystem=function(){return _mxSystem11()+'\n19. 学校：说了具体分数（「8 分以上的学校」）写 schoolMin「8分以上」；只说「好学校 / 名校」不写 schoolMin 也不写 schoolPref，把 学区 写进 priority。schoolPref 只写学校类型：公校 / 私校 / 教会 / 男校 / 女校 / 混校，可多值，用「、」分隔。IB、AP、法语沉浸、中文双语、天才班、蒙特梭利、艺术特色、体育特色、STEM 特色写 schoolProg，可多值。';};
+  /* 学校详情页的模板文案还认旧取值，调用时临时换回去 */
+  var _fitForSchool11=fitForSchool;fitForSchool=function(name,inf){var p=profile,sv=p.schoolPref,pg=p.schoolProg||'';p.schoolPref=/私校|教会/.test(sv||'')?'私立':(/IB/.test(pg)?'IB 课程':(/法语/.test(pg)?'French Immersion':''));try{return _fitForSchool11(name,inf);}finally{p.schoolPref=sv;}};
+
+  /* ---------- 任务单（内部）：每个推荐类回合记一张，调试页里看 ---------- */
+  var TASKS=[];
+  function kv(o){var out=[],k;for(k in o)if(o[k]&&typeof o[k]!=='object')out.push(k+'：'+o[k]);return out;}
+  function taskOf(t){var k=t.kind;if(!RK_CN[k]||(t.asks&&t.asks.length)||t.rkPending)return;var p=profile,c=t.circ||{},tc=rkTurnCond(t),turn=kv(tc['字段']||{}).concat(tc['评判标准']||[]).concat((tc['不要']||[]).map(function(x){return '不要 '+x;})),ex=avoidList(p).filter(function(a){return a.dim==='排除区域';}).map(function(a){return a.value;}),circ=[],rank=[],hasCov=!!(budgetRange(p.budget)&&p.htype),task;
+    if(k==='listing'){circ=kv(rkHard()).concat(avoidList(p).filter(function(a){return a.hard&&a.dim!=='排除区域';}).map(function(a){return '不要 '+a.dim+'：'+a.value;}));rank=kv(rkSoft()).concat(rkAvoid().map(function(x){return '尽量避开 '+x;}));}
+    else{circ=(c.used||[]).slice();if(k==='school'){circ.push('学段：'+((c.attr&&c.attr.seg)||p.kids||'中学'));if(p.schoolPref)circ.push('学校类型：'+p.schoolPref);if(p.schoolMin)circ.push('评分下限：'+p.schoolMin);}
+      rank=kv(rkSoft()).filter(function(x){return !(k==='school'&&/^(孩子学段|学校类型偏好|学校评分下限)：/.test(x));});if(hasCov)rank.unshift('预算覆盖率（'+p.budget+'、'+p.htype+'）'+((k==='nb'||k==='school')?'，为 0 的排最后':''));}
+    if(ex.length)circ.unshift('排除区域：'+ex.join('、'));
+    task={id:t.id,text:t.text||'',card:RK_CN[k],turn:turn,range:scopeLabel()||('全'+V4.region),circle:circ,rank:rank,dropped:(c.dropped||[]).slice(),pool:k==='listing'?(t.batch?('正向硬筛 '+t.batch.P1+' 套 → 负向硬筛后 '+t.batch.P2+' 套'):''):(c.pool!==undefined?('圈出 '+c.pool+' 个'):''),out:k==='listing'?(t.batch?t.batch.items.length:0):((t.pick&&t.pick.names.length)||0),sort:(t.rk&&t.rk.src==='model')?'模型排序':'默认顺序（未开启模型或模型失败）'};
+    t.taskSheet=task;var i,hit=-1;for(i=0;i<TASKS.length;i++)if(TASKS[i].id===t.id)hit=i;if(hit>=0)TASKS[hit]=task;else TASKS.push(task);if(TASKS.length>8)TASKS.shift();}
+  function taskSection(){var hd='<div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;margin:10px 2px 1px">任务单（内部调试，用户看不到）</div>';
+    if(!TASKS.length)return hd+'<div class="cc"><div class="muted" style="font-size:11.5px;line-height:1.55">还没有推荐类回合。任务单是推荐引擎的内部输入单：出哪种卡、本轮条件、范围、圈的条件、排的条件。上线后写进回合日志，只给开发和产品排查用。</div></div>';
+    function row(l,v){if(!v||!v.length)return '';return '<div style="display:flex;gap:8px;font-size:11.5px;line-height:1.5;margin-top:3px"><div class="muted" style="flex:none;width:52px">'+l+'</div><div style="flex:1;min-width:0">'+esc(typeof v==='string'?v:v.join('；'))+'</div></div>';}
+    return hd+TASKS.slice().reverse().map(function(k){return '<div class="cc"><div style="font-size:12px;font-weight:500;margin-bottom:2px">'+esc(k.text||'（按钮触发）')+'</div>'+row('出卡',k.card)+row('本轮条件',k.turn)+row('范围',k.range)+row('圈',k.circle)+row('排',k.rank)+row('放掉',k.dropped)+row('候选',(k.pool?(k.pool+'，'):'')+'出 '+k.out+' 张')+row('排序',k.sort)+'</div>';}).join('');}
+  var _mxPage11=mxPage;mxPage=function(){return _mxPage11().replace('模型抽取</div>','调试与模型设置</div>').replace(/<\/div>$/,taskSection()+'</div>');};
+
+  /* ---------- 回合入口 ---------- */
+  /* 学校卡 / 商圈卡要补通勤时长和方式时，这一轮先不调排序模型 */
+  var NO_MX11=false,_mxOn11=mxOn;mxOn=function(){return !NO_MX11&&_mxOn11();};
+  /* 规则回退判意图：只说学校类型 / 课程项目（「要女校」「有 IB 的」）也是在找学校 */
+  var _detectIntent11=detectIntent;detectIntent=function(t,chips){var k=_detectIntent11(t,chips);if(_mxOn11())return k;
+    if((k==='listing'||k==='need'||k==='zone'||k==='city'||k==='nb')&&/女校|男校|混校|私校|公校|教会学校|天主教学校|蒙特梭利|天才班|法语沉浸|\bIB\b/i.test(t||'')&&!/房源|房子|套房|社区|生活圈|城市/.test(t||''))return profile.school?'listing':'school';return k;};
+  var _buildTurn11=buildTurn;buildTurn=function(t){var k=t.kind,p=profile,prev=T11,needCommute,c,nn,n0=spN;spTrack();if(t.spN0===undefined)t.spN0=n0;scNorm();t.circ=null;
+    needCommute=(k==='school'||k==='district')&&!!p.dest&&!t.skipped&&firstMissing(['time','mode']).length>0;
+    T11=t;NO_MX11=needCommute;try{_buildTurn11(t);}finally{T11=prev;NO_MX11=false;}
+    /* 提到通勤目的地时，学校卡和商圈卡同样先问时长和方式，与其他缺项并入同一个追问块 */
+    if(needCommute){var ca=firstMissing(['time','mode']),base=(t.asks||[]).filter(function(a){return a.field!=='time'&&a.field!=='mode';});t.asks=ca.concat(base);t.html='';t.lead='';t.layers=null;t.pick=null;t.relaxOpts=[];t.extra=[];t.askFirst=true;t.askHead=pfAskHead(t);t.circ=null;return;}
+    c=t.circ;
+    /* 圈完为 0（范围和自身属性不放）：不出卡，说明是哪个条件没有符合的 */
+    if(REG_K[k]&&c&&c.pool===0&&!(t.asks&&t.asks.length)&&!t.rkPending){nn=NOUN11[k];t.html='';t.layers=null;t.pick=null;t.extra=(t.extra||[]).filter(function(x){return x.keep;});t.lead='圈下来没有符合条件的'+nn[0]+'，可以换个范围或条件再看。';
+      if(k==='school'&&c.attr){var a=c.attr,chips=[];t.lead='圈下来'+(!a.n0?('没有'+a.seg+'的数据'):!a.n1?('没有「'+a.type+'」的'+a.seg):!a.n2?('没有评分在 '+a.min+' 的'+(a.type?('「'+a.type+'」'):'')+a.seg):('这个范围里没有符合的'+a.seg))+'。学段、学校类型和评分下限是硬条件，我不会自己放宽，你可以改一项再看：';
+        if(a.min&&a.n1)chips.push({label:'去掉评分下限',fn:function(){profile.schoolMin='';pref();refreshTurn(t);}});if(a.type)chips.push({label:'不限学校类型',fn:function(){profile.schoolPref='';pref();refreshTurn(t);}});if(a.n2&&!a.n3)chips.push({label:'不限区域',fn:function(){setFocus([]);pref();refreshTurn(t);}});
+        if(chips.length)t.extra.push({id:'sc'+t.id,chips:chips});}}
+    taskOf(t);};
+  spTrack();
+  window.__v11={tasks:function(){return TASKS.slice();},circ:function(){return lastTurn&&lastTurn.circ;},schools:function(){return scAll().length;},near:function(n,c){return nbsNear({name:n,city:c}).slice();},conds:function(k){return spConds(k).map(function(x){return x.label;});},
+    /* 排序模型会收到的事实字段和补充规则，便于不开模型时核对 */
+    facts:function(kind,name){if(kind==='city')return rkFactCity({n:name,s:0});if(kind==='zone')return rkFactZone({n:name,s:0});if(kind==='nb')return rkFactNb(rowFor(name));if(kind==='school'){var s=scBy(name);return s?rkFactSchool([s.name,s.sub,s.scoreTxt,s.course]):null;}var d=allDistricts().filter(function(x){return x.name===name;})[0];return d?rkFactDistrict(d):null;},
+    system:function(){return rkSystem();},mxRule:function(){return mxSystem().slice(-330);}};
 
 })();
 </script>
