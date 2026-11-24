@@ -230,6 +230,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1063,6 +1064,9 @@ return null;}
     LPOOL.forEach(function(l){LIDX[l.id]=l;});return LPOOL;}
   function typeCN(t){return t==='Condo'?'公寓':t==='Townhouse'?'联排':t;}
   function budgetRange(b,mul){mul=mul||1;if(!b)return null;var m=b.match(/(\d+)\s*[–\-~]\s*(\d+)/);if(m)return [+m[1],Math.round(+m[2]*mul)];var g=b.match(/[>＞]\s*(\d+)/);if(g)return [+g[1],9999];var lt=b.match(/[<＜≤]\s*(\d+)/);if(lt)return [0,Math.round(+lt[1]*mul)];var a=b.match(/(\d+)/);if(a){var n=+a[1];return [Math.round(n*0.85),Math.round(n*1.15*mul)];}return null;}
+  /* 面积：下限、上限或区间，写法跟预算一致（≥1500 sqft / ≤2000 sqft / 1200–1800 sqft）。只有一个数、没写方向时按下限 */
+  function areaRange(v){if(!v)return null;var s=(''+v).replace(/,/g,''),m=s.match(/(\d{3,5})\s*[–\-~到至]\s*(\d{3,5})/);if(m)return [Math.min(+m[1],+m[2]),Math.max(+m[1],+m[2])];var n=s.match(/(\d{3,5})/);if(!n)return null;if(/[<＜≤]|以内|以下|不超过|最多/.test(s))return [0,+n[1]];return [+n[1],99999];}
+  function areaFmt(r){if(!r)return '';return r[0]&&r[1]<99999?(r[0]+'–'+r[1]+' sqft'):r[0]?('≥'+r[0]+' sqft'):('≤'+r[1]+' sqft');}
   function typeOK(l,ht){if(!ht||/楼花|都可以|不限/.test(ht))return true;var ok=false;ht.split(/[、\/ ]+/).forEach(function(h){if(/condo|公寓/i.test(h)&&l.type==='Condo')ok=true;if(/townhouse|联排/i.test(h)&&l.type==='Townhouse')ok=true;if(/独立屋|detached/i.test(h)&&l.type==='独立屋')ok=true;if(/双拼|半独立|semi/i.test(h)&&l.semi)ok=true;});return ok;}
   function regionSet(p,level){if(level==='none')return null;var s={},any=false;(p.tNb||'').split('、').filter(Boolean).forEach(function(n){if(level==='city'){var c=nbCity(n);if(c){s['city:'+c]=1;any=true;}}else{s['nb:'+n]=1;any=true;}});(p.tZone||'').split('、').filter(Boolean).forEach(function(z){if(typeof ZONES!=='undefined'&&ZONES[z]){if(level==='city')ZONES[z].cities.forEach(function(c){s['city:'+c]=1;any=true;});else ZONES[z].nbs.forEach(function(q){s['nb:'+q[0]]=1;any=true;});}});(p.tCity||'').split('、').filter(Boolean).forEach(function(c){s['city:'+c]=1;any=true;});
     (p.district||'').split('、').filter(Boolean).forEach(function(d){var c=distCity(d);var nbs=nbsNearDistrict(d,c);nbs.forEach(function(n){s['nb:'+n]=1;any=true;});});
@@ -1075,7 +1079,7 @@ return null;}
   function destKeyOf(p){var destKey=V4.destDefault,i;for(i=0;i<V4.destKeys.length;i++)if(new RegExp(V4.destKeys[i][0],'i').test(p.dest||''))destKey=V4.destKeys[i][1];return destKey;}
   function isoNbs(p){var dk=destKeyOf(p),tKey=/30/.test(p.time||'')?'30分钟':/60/.test(p.time||'')?'60分钟':'45分钟';var base=((BSET[dk]&&BSET[dk][tKey])||BSET[V4.destDefault]['45分钟']).slice();if(tKey==='45分钟'&&BSET[dk]&&BSET[dk]['30分钟'])base=BSET[dk]['30分钟'].concat(base);if(tKey==='60分钟'&&BSET[dk])base=(BSET[dk]['30分钟']||[]).concat(BSET[dk]['45分钟']||[]).concat(base);var seen={};return base.filter(function(n){if(seen[n[0]])return false;seen[n[0]]=1;return true;});}
   function stage1(p,l,o){o=o||{};var br=budgetRange(p.budget,o.bw||1);if(o.budgetMax)br=[0,o.budgetMax];if(br&&(l.price<br[0]||l.price>br[1]))return false;if(!typeOK(l,o.htype||p.htype))return false;var bd=parseInt(((p.beds||'').match(/\d/)||[0])[0],10)-(o.bedsMinus||0);if(bd>0&&l.beds<bd)return false;var rs=o.regionSet||regionSet(p,o.region);if(rs&&!rs['nb:'+l.nb]&&!rs['city:'+l.city])return false;if(o.loose)return true;
-    var ba=parseInt(((p.baths||'').match(/\d/)||[0])[0],10);if(ba&&l.baths<ba)return false;var sq=parseInt(((p.sqftMin||'').match(/\d+/)||[0])[0],10);if(sq&&l.sqft<sq)return false;if(!o.noPark){if(/2/.test(p.parking||'')&&l.parkN<2)return false;if(/1/.test(p.parking||'')&&l.parkN<1)return false;}if(p.pet&&l.pets==='限制')return false;if(/电梯/.test(p.features||'')&&l.type==='Condo'&&!l.elevator)return false;if(/地下室/.test(p.features||'')&&!l.basement)return false;if(/后院/.test(p.features||'')&&!l.yard)return false;if(/全新|楼花/.test(p.age||'')&&l.year<2023)return false;if(/10 年内/.test(p.age||'')&&l.year<2016)return false;if(p.feeMax&&l.fee>p.feeMax)return false;if(p.nearTransit&&l.rail>1200)return false;return true;}
+    var ba=parseInt(((p.baths||'').match(/\d/)||[0])[0],10);if(ba&&l.baths<ba)return false;var ar=areaRange(p.sqftMin);if(ar&&(l.sqft<ar[0]||l.sqft>ar[1]))return false;if(!o.noPark){if(/2/.test(p.parking||'')&&l.parkN<2)return false;if(/1/.test(p.parking||'')&&l.parkN<1)return false;}if(p.pet&&l.pets==='限制')return false;if(/电梯/.test(p.features||'')&&l.type==='Condo'&&!l.elevator)return false;if(/地下室/.test(p.features||'')&&!l.basement)return false;if(/后院/.test(p.features||'')&&!l.yard)return false;if(/全新|楼花/.test(p.age||'')&&l.year<2023)return false;if(/10 年内/.test(p.age||'')&&l.year<2016)return false;if(p.feeMax&&l.fee>p.feeMax)return false;if(p.nearTransit&&l.rail>1200)return false;return true;}
   function stage2(p,l){var av=avoidList(p),i;for(i=0;i<av.length;i++){var a=av[i];if(!a.hard)continue;var v=a.value;switch(a.dim){
       case '排除区域':if(l.nb===v||l.city===v||(typeof ZONES!=='undefined'&&ZONES[v]&&ZONES[v].nbs.some(function(q){return q[0]===l.nb;})))return false;break;
       case '楼层布局':if(/3/.test(v)&&l.levels===3)return false;break;
@@ -2350,7 +2354,7 @@ return null;}
   /* ---------- 「我的档案」字段区：分组、顺序、叫法与 PRD 5.1 一致 ----------
      去掉两个没有任何逻辑在用的旧字段（选区侧重、看重安全，含义已并入「最看重」）；
      补上档案里有但页面没列的四项：月费上限、商圈必备、首付比例、首次购房；关注的商圈和目标学校也可以点 × 移除 */
-  (function(){var i;for(i=FIELDS.length-1;i>=0;i--){if(FIELDS[i].k==='cityFocus'||FIELDS[i].k==='safety')FIELDS.splice(i,1);else if(FIELDS[i].k==='schoolPref')FIELDS[i].label='学校类型偏好';else if(FIELDS[i].k==='sqftMin')FIELDS[i].label='面积';/* 档案里叫「面积」，值仍按下限记（如 1500 sqft 起） */}})();
+  (function(){var i;for(i=FIELDS.length-1;i>=0;i--){if(FIELDS[i].k==='cityFocus'||FIELDS[i].k==='safety')FIELDS.splice(i,1);else if(FIELDS[i].k==='schoolPref')FIELDS[i].label='学校类型偏好';else if(FIELDS[i].k==='sqftMin')FIELDS[i].label='面积';/* 档案里叫「面积」，值可以是下限、上限或区间（p1 的 areaRange，p11 的 areaRule） */}})();
   var PF_GROUPS=[['目标区域',['tCity','tZone','tNb','district','school']],['通勤',['dest','mode','time','curCity']],['预算与房型',['budget','htype','beds','baths','sqftMin']],['房源细节',['age','parking','features','nearTransit','pet','feeMax','taxMax','expo','floorPref','tenure','constr']],['家庭与学校',['family','kids','schoolPref']],['生活偏好',['priority','tone','vibe','view','amenities','mustHave','apprec','holdYears','rentNeed']],['时间线与身份',['timeline','preApproved','downPay','firstTime','identity']]];
   var PF_X={feeMax:{k:'feeMax',label:'月费上限'},mustHave:{k:'mustHave',label:'商圈必备'}};
   function pfField(k){var i;for(i=0;i<FIELDS.length;i++)if(FIELDS[i].k===k)return FIELDS[i];return PF_X[k]||null;}
@@ -2622,6 +2626,22 @@ return null;}
   var _extract11=extract;extract=function(t){var b={schoolPref:profile.schoolPref||''};_extract11(t);if(t&&typeof t==='string'){try{scRules(t,b);}catch(e){}}};
   var _mxApply11=mxApply;mxApply=function(res,t){_mxApply11(res,t);scNorm();};
   var _mxSystem11=mxSystem;mxSystem=function(){return _mxSystem11()+'\n19. 学校：说了具体分数（「8 分以上的学校」）写 schoolMin「8分以上」；只说「好学校 / 名校」不写 schoolMin 也不写 schoolPref，把 学区 写进 priority。schoolPref 只写学校类型：公校 / 私校 / 教会 / 男校 / 女校 / 混校，可多值，用「、」分隔。IB、AP、法语沉浸、中文双语、天才班、蒙特梭利、艺术特色、体育特色、STEM 特色写 schoolProg，可多值。';};
+
+  /* ---------- 面积：下限、上限或区间（档案里的键仍叫 sqftMin） ----------
+     「1500 尺以上」→ ≥1500 sqft；「2000 尺以内 / 不超过 2000 尺」→ ≤2000 sqft；「1200 到 1800 尺」→ 1200–1800 sqft；
+     带数值的否定按 PRD 5.2 写成正向阈值：「超过 2000 尺的不要」→ ≤2000 sqft，「小于 1000 尺的不要」→ ≥1000 sqft */
+  var AREA_U='(?:平方英尺|平方尺|英尺|平尺|尺|呎|sq\\.?\\s*ft|sqft)',AREA_NO='.{0,6}(?:不要|不考虑|不看|别推)';
+  function areaRule(t){var s=(t||'').replace(/(\d),(\d{3})/g,'$1$2'),m;
+    m=s.match(new RegExp('(\\d{3,5})\\s*'+AREA_U+'?\\s*(?:[–\\-~]|到|至)\\s*(\\d{3,5})\\s*'+AREA_U,'i'));if(m)return areaFmt([Math.min(+m[1],+m[2]),Math.max(+m[1],+m[2])]);
+    m=s.match(new RegExp('(?:超过|大于|高于)\\s*(\\d{3,5})\\s*'+AREA_U+AREA_NO,'i'));if(m)return areaFmt([0,+m[1]]);
+    m=s.match(new RegExp('(?:小于|低于|不到|不足)\\s*(\\d{3,5})\\s*'+AREA_U+AREA_NO,'i'));if(m)return areaFmt([+m[1],99999]);
+    m=s.match(new RegExp('(?:不超过|不大于|不要超过|别超过|最多|最大|小于|低于)\\s*(\\d{3,5})\\s*'+AREA_U,'i'))||s.match(new RegExp('(\\d{3,5})\\s*'+AREA_U+'\\s*(?:以内|以下|之内|内)','i'));if(m)return areaFmt([0,+m[1]]);
+    m=s.match(new RegExp('(\\d{3,5})\\s*'+AREA_U,'i'));if(m)return areaFmt([+m[1],99999]);return '';}
+  function areaNorm(){if(profile.sqftMin)profile.sqftMin=areaFmt(areaRange(profile.sqftMin))||profile.sqftMin;}
+  var _extract11a=extract;extract=function(t){_extract11a(t);if(t&&typeof t==='string'){var a=areaRule(t);if(a)profile.sqftMin=a;}areaNorm();};
+  var _mxApply11a=mxApply;mxApply=function(res,t){_mxApply11a(res,t);areaNorm();};
+  var _mxSystem11a=mxSystem;mxSystem=function(){return _mxSystem11a()+'\n20. 面积（sqftMin）按用户说的方向写：下限写「≥1500 sqft」，上限写「≤2000 sqft」，区间写「1200–1800 sqft」；只说一个数、没说以上还是以内时按下限。「超过 2000 尺的不要」写 ≤2000 sqft，不进 avoid。';};
+  if(typeof MX_FREE!=='undefined')MX_FREE.sqftMin=['≥1500 sqft','≤2000 sqft','1200–1800 sqft'];
   /* 学校详情页的模板文案还认旧取值，调用时临时换回去 */
   var _fitForSchool11=fitForSchool;fitForSchool=function(name,inf){var p=profile,sv=p.schoolPref,pg=p.schoolProg||'';p.schoolPref=/私校|教会/.test(sv||'')?'私立':(/IB/.test(pg)?'IB 课程':(/法语/.test(pg)?'French Immersion':''));try{return _fitForSchool11(name,inf);}finally{p.schoolPref=sv;}};
 
