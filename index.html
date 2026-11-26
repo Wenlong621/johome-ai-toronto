@@ -234,6 +234,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -351,6 +352,12 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v3und .v4kept{margin-left:auto;font-size:10px}
 
 .v3und .v4saved{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#0F6E56}
+
+/* AI 的回复前面不放头像，回复占满整行宽度（用户说的话仍靠右）；「问 AI」半屏同样处理 */
+#jhp .chat .row>.av,.v3sheet .sm .row>.av{display:none}
+#jhp .chat .qr{padding-left:0}
+#jhp .chat .bub{max-width:100%}
+.v4box{border-top-left-radius:14px}
 </style>
 </head>
 <body>
@@ -2715,11 +2722,11 @@ return null;}
     taskOf(t);};
   /* ---------- 一次回答的所有块放进同一个回答框 ----------
      renderTurn 仍按原来的方式一块一行地出（AI 理解为 / 追问 / 导语 / 卡片 / 选一个 / 放宽 / 其他），
-     这里在最外层把这些行的内容挪进一个框里：一个头像、一个框。节点是原样挪过去的，按钮上的点击不受影响 */
+     这里在最外层把这些行的内容挪进一个框里：回复前面不放头像，框占满整行。节点是原样挪过去的，按钮上的点击不受影响 */
   function boxTurn(t){var el=t&&t.el;if(!el)return;var rows=Array.prototype.slice.call(el.children).filter(function(r){return r.classList&&r.classList.contains('row')&&!r.classList.contains('v4ans');});if(!rows.length)return;
-    var wrap=document.createElement('div'),av=document.createElement('div'),box=document.createElement('div');wrap.className='row v4ans';av.className='av';av.innerHTML='<i class="ti ti-sparkles"></i>';box.className='v4box';
+    var wrap=document.createElement('div'),box=document.createElement('div');wrap.className='row v4ans';box.className='v4box';
     rows.forEach(function(r){var sec=document.createElement('div');sec.className='v4sec';Array.prototype.slice.call(r.children).forEach(function(c){if(c.classList&&c.classList.contains('av'))return;sec.appendChild(c);});if(sec.querySelector('.v3und'))sec.className+=' v4sund';else if(sec.querySelector('.v4scroll'))sec.className+=' v4scards';if(sec.children.length)box.appendChild(sec);r.parentNode.removeChild(r);});
-    wrap.appendChild(av);wrap.appendChild(box);el.appendChild(wrap);}
+    wrap.appendChild(box);el.appendChild(wrap);}
   var _renderTurn11=renderTurn;renderTurn=function(t){_renderTurn11(t);try{boxTurn(t);}catch(e){}};
   spTrack();
   window.__v11={tasks:function(){return TASKS.slice();},circ:function(){return lastTurn&&lastTurn.circ;},schools:function(){return scAll().length;},near:function(n,c){return nbsNear({name:n,city:c}).slice();},conds:function(k){return spConds(k).map(function(x){return x.label;});},
