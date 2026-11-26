@@ -237,6 +237,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1379,7 +1380,7 @@ return null;}
     n=el.querySelectorAll('[data-pickok]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){confirmPick(t);};})(n[i]);
     n=el.querySelectorAll('[data-pickmore]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){morePick(t);};})(n[i]);
     n=el.querySelectorAll('[data-relax]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){var v=b.getAttribute('data-relax');if(v==='keep'){keepStrict(t);return;}applyRelax(t,t.relaxOpts[+v]);};})(n[i]);
-    n=el.querySelectorAll('[data-extra]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){var pr=b.getAttribute('data-extra').split(':'),x=(t.extra||[]).filter(function(e){return e.id===pr[0];})[0];if(x&&x.chips[+pr[1]]){var c=x.chips[+pr[1]];b.parentNode.querySelectorAll('button').forEach(function(q){q.disabled=true;q.style.opacity='0.5';});c.fn();}};})(n[i]);
+    n=el.querySelectorAll('[data-extra]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){var pr=b.getAttribute('data-extra').split(':'),x=(t.extra||[]).filter(function(e){return e.id===pr[0];})[0];if(x&&x.chips[+pr[1]]){var c=x.chips[+pr[1]];/* 标了 solo 的按钮点了只置灰自己，同一行的其他按钮还能点 */(c.solo?[b]:Array.prototype.slice.call(b.parentNode.querySelectorAll('button'))).forEach(function(q){q.disabled=true;q.style.opacity='0.5';});c.fn();}};})(n[i]);
     n=el.querySelectorAll('[data-aff]');for(i=0;i<n.length;i++)(function(b){b.onclick=function(){affAction(b);};})(n[i]);}
   function refreshTurn(t){t.asks=null;t.relax=t.relax||null;buildTurn(t);renderTurn(t);}
   function lockAsk(t){if(!t.el)return;var n=t.el.querySelectorAll('.v4askrow button,.v4askrow input,[data-askok],[data-askv="__skip"]'),i;for(i=0;i<n.length;i++){n[i].disabled=true;n[i].style.opacity='0.55';n[i].style.pointerEvents='none';}var ok=t.el.querySelector('[data-askok]');if(ok)ok.style.display='none';t.asks=null;if(pendingAsk&&pendingAsk.turn===t)pendingAsk=null;}
@@ -2729,7 +2730,7 @@ return null;}
     taskOf(t);};
   /* ---------- 房源卡一次出 5 套，「换一批」按排序顺位往后再取 5 套；队列空了就不出按钮 ---------- */
   function moreBatch(from,typed){var b=from&&from.batch,rest=(b&&b.rest)||[];if(!rest.length)return false;if(!typed)addUser('换一批');var tn=newTurn();tn.kind='listing';tn.text=from.text;tn.skipped=true;tn.relax=from.relax||null;tn.queue={items:rest.slice(),base:b,start:(b.start||0)+b.items.length};b.rest=[];typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});return true;}
-  var _buildTurn11m=buildTurn;buildTurn=function(t){_buildTurn11m(t);if(t.kind==='listing'&&t.batch&&t.batch.rest&&t.batch.rest.length&&t.html&&!(t.asks&&t.asks.length)){t.extra=t.extra||[];if(!t.extra.some(function(x){return x.id==='mb'+t.id;})){var at=-1;t.extra.forEach(function(x,i){if(x.id==='wr'+t.id)at=i;});t.extra.splice(at>=0?at+1:t.extra.length,0,{id:'mb'+t.id,chips:[{label:'换一批',icon:'ti-refresh',fn:function(){moreBatch(t);}}]});}}};
+  var _buildTurn11m=buildTurn;buildTurn=function(t){_buildTurn11m(t);if(t.kind==='listing'&&t.batch&&t.batch.rest&&t.batch.rest.length&&t.html&&!(t.asks&&t.asks.length)){t.extra=t.extra||[];var chip={label:'换一批',icon:'ti-refresh',solo:true,fn:function(){moreBatch(t);}},wr=null;t.extra.forEach(function(x){if(x.id==='wr'+t.id)wr=x;});/* 和「把 X 加入到关注」放同一行；两个按钮互不影响，点了哪个只置灰哪个 */if(wr){wr.chips.forEach(function(c){c.solo=true;});if(!wr.chips.some(function(c){return c.label==='换一批';}))wr.chips.push(chip);}else if(!t.extra.some(function(x){return x.id==='mb'+t.id;}))t.extra.push({id:'mb'+t.id,chips:[chip]});}};
   /* ---------- 一次回答的所有块放进同一个回答框 ----------
      renderTurn 仍按原来的方式一块一行地出（AI 理解为 / 追问 / 导语 / 卡片 / 选一个 / 放宽 / 其他），
      这里在最外层把这些行的内容挪进一个框里：回复前面不放头像，框占满整行。节点是原样挪过去的，按钮上的点击不受影响 */
