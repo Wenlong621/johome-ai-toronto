@@ -235,6 +235,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -358,6 +359,10 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 #jhp .chat .qr{padding-left:0}
 #jhp .chat .bub{max-width:100%}
 .v4box{border-top-left-radius:14px}
+
+/* 回复不加外框：回答框只负责把各块排在一起，没有边框、底色和内边距；单条回复也是纯文字。用户说的话仍是右侧的气泡 */
+.v4box{background:none;border:0;border-radius:0;padding:0}
+#jhp .chat .row:not(.me)>.bub,.v3sheet .sm .row:not(.me)>.bub{background:none;border:0;border-radius:0;padding:0 1px;max-width:100%}
 </style>
 </head>
 <body>
