@@ -238,6 +238,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -365,6 +366,10 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 /* 回复不加外框：回答框只负责把各块排在一起，没有边框、底色和内边距；单条回复也是纯文字。用户说的话仍是右侧的气泡 */
 .v4box{background:none;border:0;border-radius:0;padding:0}
 #jhp .chat .row:not(.me)>.bub,.v3sheet .sm .row:not(.me)>.bub{background:none;border:0;border-radius:0;padding:0 1px;max-width:100%}
+
+/* 回答里的按钮行稍微收紧一点，让「把 X 加入到关注的城市」和「换一批」在窄屏上也能排在同一行 */
+#jhp .chat .v4box .qr{gap:4px}
+#jhp .chat .v4box .qr .q{padding:4px 8px}
 </style>
 </head>
 <body>
