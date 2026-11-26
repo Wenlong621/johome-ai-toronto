@@ -236,6 +236,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1140,7 +1141,7 @@ return null;}
   /* 三段式（不放宽）：o.relax = 用户点选的放宽项；o.exclude = 已推送 / 不合适 */
   function runBatch(o){o=o||{};var p=o.profile||profile,pool=buildPool(),ds=gDisliked,opt=o.relax||{};
     var P1=pool.filter(function(l){return !(o.freshOnly&&!l.fresh)&&stage1(p,l,opt);}),P2=P1.filter(function(l){return stage2(p,l)&&!ds[l.id]&&!(o.exclude&&o.exclude[l.id]);});
-    var strict=P2.length,P2s=P2;if(P2s.length>40){var br=budgetRange(p.budget),mid=br?(br[0]+br[1])/2:0;P2s=P2s.slice().sort(function(a,b){return (a.days-b.days);}).slice(0,40);}
+    var strict=P2.length,P2s=P2;var lim=o.poolMax||40;if(P2s.length>lim){var br=budgetRange(p.budget),mid=br?(br[0]+br[1])/2:0;P2s=P2s.slice().sort(function(a,b){return (a.days-b.days);}).slice(0,lim);}
     var items=rkOrder('listing',P2s.map(function(l){var sc=softScore(p,l);return {l:l,sc:sc,relax:[]};}),function(it){return ''+it.l.id;},o.cap||10,function(a,b){return a.l.days-b.l.days;},rkFactListing,(!o.profile||o.profile===profile)&&!o.freshOnly,function(it,w){it.sc.hits=w.slice();});
     var b={id:'B'+(++batchSeq),P1:P1.length,P2:P2.length,strict:strict,relaxed:opt.labels||[],items:items,v:p._v||1,t:new Date()};lastBatch=b;return b;}
   function countWith(p,opt,exclude){var pool=buildPool(),n=0,i;for(i=0;i<pool.length;i++){var l=pool[i];if(stage1(p,l,opt)&&stage2(p,l)&&!gDisliked[l.id]&&!(exclude&&exclude[l.id]))n++;}return n;}
@@ -1425,11 +1426,12 @@ return null;}
   function firstMissing(fields){var out=[],i;for(i=0;i<fields.length;i++){var f=fields[i];if(!profile[f]&&(skipCount[f]||0)<2){var a=askFor(f);if(a)out.push(a);}}return out;}
 
   /* ---------- 各类结果 ---------- */
+  function queueBatch(q){var b={id:'B'+(++batchSeq),P1:q.base.P1,P2:q.base.P2,strict:q.base.strict,relaxed:q.base.relaxed||[],items:q.items.slice(0,5),rest:q.items.slice(5),start:q.start,v:profile._v||1,t:new Date()};lastBatch=b;return b;}
   function buildTurn(t){var p=profile,k=t.kind;t.html='';t.lead='';t.layers=null;t.relaxOpts=[];t.extra=t.extra||[];t.extra=t.extra.filter(function(x){return x.keep;});
-    if(k==='listing'){if(!hasRegion(p)&&!t.allRegion){t.lead='现在没有区域条件了。告诉我想住哪（城市 / 生活圈 / 社区）、在哪上班，或想上哪所学校，我再找。';return;}var relaxOpt=t.relax?t.relax.opt:{},b=runBatch({relax:relaxOpt});t.batch=b;t.strictN=b.strict;b.items.forEach(function(it){it.relaxed=t.relax?[t.relax.label]:[];});
+    if(k==='listing'){if(!hasRegion(p)&&!t.allRegion){t.lead='现在没有区域条件了。告诉我想住哪（城市 / 生活圈 / 社区）、在哪上班，或想上哪所学校，我再找。';return;}var relaxOpt=t.relax?t.relax.opt:{},b=t.queue?queueBatch(t.queue):runBatch({relax:relaxOpt,cap:20,poolMax:20});/* 规模控制后最多 20 套排好序：这一批出前 5 套，其余留在 rest 里给「换一批」按顺位往后取 */if(!t.queue){b.rest=b.items.slice(5);b.items=b.items.slice(0,5);b.start=0;}t.batch=b;t.strictN=b.strict;b.items.forEach(function(it){it.relaxed=t.relax?[t.relax.label]:[];});
       var scope=[p.tNb,p.tZone,p.tCity].filter(Boolean).join('、').replace(/、/g,' / ')||(p.district?(p.district+' 商圈半径内'):'')||(p.school?(p.school+' '+V4.catchWord+'范围'):'')||(p.dest?('到 '+p.dest+' '+(p.time||'45分钟')+'等时圈内'):'')||('全'+V4.region+'（你还没说区域）');
       if(!t.relax&&b.strict===0){t.lead='在 '+scope+'，完全符合你条件的在售房源有 0 套（不含「不考虑」项）。';t.relaxOpts=relaxOptions(p,{},null);}
-      else{t.lead=t.relax?('按你的选择「'+t.relax.label+'」，在 '+scope+' 符合放宽后条件的在售房源 '+b.P2+' 套，'):('在 '+scope+'，完全符合的在售房源 '+b.strict+' 套，');t.lead+='按你的偏好排序，这 '+b.items.length+' 套最匹配（地图上同步标出）：';var cards='',i;for(i=0;i<Math.min(5,b.items.length);i++)cards+=v3card(b.items[i],i+1);if(b.items.length>5)cards+='<div class="cc" data-vall="1" style="width:104px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;cursor:pointer"><i class="ti ti-arrow-right" style="font-size:22px;color:#0F6E56"></i><span style="font-size:11.5px;line-height:1.35;color:#0F6E56">查看全部<br>'+b.items.length+' 套</span></div>';t.html='<div class="v4scroll">'+cards+'</div>'+(t.relax?'<div class="muted" style="font-size:10.5px;margin-top:4px"><i class="ti ti-arrows-diff"></i> 按你的选择：'+esc(t.relax.label)+'（卡片与地图虚线为扩展部分）</div>':'');if(!t.relax&&b.strict<3)t.relaxOpts=relaxOptions(p,{},null);}
+      else{t.lead=t.relax?('按你的选择「'+t.relax.label+'」，在 '+scope+' 符合放宽后条件的在售房源 '+b.P2+' 套，'):('在 '+scope+'，完全符合的在售房源 '+b.strict+' 套，');t.lead=t.queue?('换一批，按排序往后再看 '+b.items.length+' 套（第 '+(b.start+1)+'–'+(b.start+b.items.length)+' 套）：'):(t.lead+'按你的偏好排序，这 '+b.items.length+' 套最匹配（地图上同步标出）：');var cards='',i;for(i=0;i<Math.min(5,b.items.length);i++)cards+=v3card(b.items[i],i+1);t.html='<div class="v4scroll">'+cards+'</div>'+(t.relax?'<div class="muted" style="font-size:10.5px;margin-top:4px"><i class="ti ti-arrows-diff"></i> 按你的选择：'+esc(t.relax.label)+'（卡片与地图虚线为扩展部分）</div>':'');if(!t.relax&&!t.queue&&b.strict<3)t.relaxOpts=relaxOptions(p,{},null);}
       var cl=condLayers(p,t.relax);var polys=regionPolys(p).concat(cl.polys);if(t.relax&&t.relax.kind==='region'){var rs=t.relax.opt.regionSet,kk;for(kk in rs){if(kk.indexOf('city:')===0)polys.push({pts:blob(cityCtr(kk.slice(5)),4.5,'cityx'+kk,20),dashed:true,fillOpacity:0.03,label:kk.slice(5)});if(kk.indexOf('nb:')===0&&!(regionSet(p)||{})[kk])polys.push({pts:blob(nbGeo(kk.slice(3)),1.2,'nbx'+kk,16),dashed:true,fillOpacity:0.04,label:kk.slice(3)});}}
       t.layers={pins:b.items.map(function(it){return {geo:it.l.geo,price:it.l.price,id:it.l.id};}),polys:polys,circles:cl.circles,points:cl.points};
       t.asks=t.skipped?[]:firstMissing(['budget','htype','beds']);if(t.asks.length){t.html='';t.lead='';t.layers=null;t.relaxOpts=[];t.batch=null;t.askFirst=true;t.askHead='先补上这几项，我再出房源：';}else t.askFirst=false;
@@ -1883,7 +1885,7 @@ return null;}
     if(k==='closing'){var p=profile,parts=[];[['区域',p.tNb||p.tZone||p.tCity||p.district||(p.school?('学校 '+p.school):'')||(p.dest?('通勤到 '+p.dest):'')],['预算',p.budget],['房型',p.htype],['卧室数',p.beds]].forEach(function(x){if(x[1])parts.push(x[0]+' '+x[1]);});t.lead='好，先到这。'+(parts.length?('档案里记着：'+parts.join('、')+'。'):'')+(dailyEligible()&&daily.on?'每日推荐照常，有完全符合的新房源会告诉你。':'')+'下次直接接着说就行。';return;}
     if(k==='more'){var lt=lastTurn;var prev=null,i;for(i=turns.length-1;i>=0;i--){if(turns[i]!==t&&turns[i].kind&&!NEW_KINDS[turns[i].kind]){prev=turns[i];break;}}if(!prev){t.lead='还没有可以换的结果，先说个条件。';return;}
       if(prev.pick&&prev.pick.names&&prev.pick.names.length){turns.pop();t.silent=true;lastTurn=prev;morePick(prev);return;}
-      if(prev.kind==='listing'&&prev.batch){var ex2={};turns.forEach(function(x){if(x.batch)x.batch.items.forEach(function(it){ex2[it.l.id]=1;});});turns.pop();t.silent=true;var tn=newTurn();tn.kind='listing';tn.text=prev.text;tn.skipped=true;tn.excludeIds=ex2;typing(function(){buildTurn(tn);if(!tn.batch||!tn.batch.items.length){tn.lead='这个条件下没有更多房源了。可以放宽一项，或说新条件。';tn.html='';tn.layers=null;tn.relaxOpts=relaxOptions(profile,{},ex2);}renderTurn(tn);});return;}
+      if(prev.kind==='listing'&&prev.batch){if(prev.batch.rest&&prev.batch.rest.length){turns.pop();t.silent=true;moreBatch(prev,true);return;}var ex2={};turns.forEach(function(x){if(x.batch)x.batch.items.forEach(function(it){ex2[it.l.id]=1;});});turns.pop();t.silent=true;var tn=newTurn();tn.kind='listing';tn.text=prev.text;tn.skipped=true;tn.excludeIds=ex2;typing(function(){buildTurn(tn);if(!tn.batch||!tn.batch.items.length){tn.lead='这个条件下没有更多房源了。可以放宽一项，或说新条件。';tn.html='';tn.layers=null;tn.relaxOpts=relaxOptions(profile,{},ex2);}renderTurn(tn);});return;}
       t.lead='上一轮不是卡片结果，没有可换的。说个新条件吧。';return;}}
 
   /* ---------- 指代（K 类）：第 N 个 / 这套 ---------- */
@@ -2725,6 +2727,9 @@ return null;}
         if(a.min&&a.n1)chips.push({label:'去掉评分下限',fn:function(){profile.schoolMin='';pref();refreshTurn(t);}});if(a.type)chips.push({label:'不限学校类型',fn:function(){profile.schoolPref='';pref();refreshTurn(t);}});if(a.n2&&!a.n3)chips.push({label:'不限区域',fn:function(){setFocus([]);pref();refreshTurn(t);}});
         if(chips.length)t.extra.push({id:'sc'+t.id,chips:chips});}}
     taskOf(t);};
+  /* ---------- 房源卡一次出 5 套，「换一批」按排序顺位往后再取 5 套；队列空了就不出按钮 ---------- */
+  function moreBatch(from,typed){var b=from&&from.batch,rest=(b&&b.rest)||[];if(!rest.length)return false;if(!typed)addUser('换一批');var tn=newTurn();tn.kind='listing';tn.text=from.text;tn.skipped=true;tn.relax=from.relax||null;tn.queue={items:rest.slice(),base:b,start:(b.start||0)+b.items.length};b.rest=[];typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});return true;}
+  var _buildTurn11m=buildTurn;buildTurn=function(t){_buildTurn11m(t);if(t.kind==='listing'&&t.batch&&t.batch.rest&&t.batch.rest.length&&t.html&&!(t.asks&&t.asks.length)){t.extra=t.extra||[];if(!t.extra.some(function(x){return x.id==='mb'+t.id;})){var at=-1;t.extra.forEach(function(x,i){if(x.id==='wr'+t.id)at=i;});t.extra.splice(at>=0?at+1:t.extra.length,0,{id:'mb'+t.id,chips:[{label:'换一批',icon:'ti-refresh',fn:function(){moreBatch(t);}}]});}}};
   /* ---------- 一次回答的所有块放进同一个回答框 ----------
      renderTurn 仍按原来的方式一块一行地出（AI 理解为 / 追问 / 导语 / 卡片 / 选一个 / 放宽 / 其他），
      这里在最外层把这些行的内容挪进一个框里：回复前面不放头像，框占满整行。节点是原样挪过去的，按钮上的点击不受影响 */
