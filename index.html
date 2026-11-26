@@ -233,6 +233,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -348,6 +349,8 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 #jhp .chat .v4box .bub,.v4box .bub{background:none;border:0;border-radius:0;padding:0;max-width:none}
 .v4box .v4cards{flex:none}
 .v3und .v4kept{margin-left:auto;font-size:10px}
+
+.v3und .v4saved{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#0F6E56}
 </style>
 </head>
 <body>
@@ -1696,7 +1699,7 @@ return null;}
   var _condChips5=condChips;condChips=function(kind,pending,t){if(NOEXTRACT[kind]||kind==='market'||kind==='stress')return [];var out=_condChips5(kind,pending,t);if(t&&mxIntentLast&&!t.mxShown){t.mxShown=true;t.mxIntent=mxIntentLast;}if(t&&t.mxIntent)out.unshift({t:'模型判意图：'+(INTENT_CN[t.mxIntent]||t.mxIntent),cls:'soft'});return out;};
 
   /* ---------- 输入分发：先判无抽取意图 → 修正句重出上一结果 → 原流程 ---------- */
-  var _renderTurn5=renderTurn;renderTurn=function(t){if(t.silent)return;_renderTurn5(t);if(pendingUndo&&!pendingUndo.done){var und=t.el&&t.el.querySelector('.v3und');if(und){var entry=pendingUndo;pendingUndo=null;entry.done=true;/* 这句话只换了「本次看」的范围、没有往档案里写东西时，不出按钮 */if(entry.chips.length&&entry.chips.every(function(c){return /^本次看：/.test(c.t||'');}))return;var b=document.createElement('button');b.className='v3mini ghost';b.setAttribute('data-undo','1');b.textContent='不记入档案';b.title='这句话里的条件只用于这一次的结果，不写进我的档案';und.appendChild(b);b.onclick=function(){keepOnce(entry,und,b);};b._undo=function(){undoAction(entry,und);};}}};
+  var _renderTurn5=renderTurn;renderTurn=function(t){if(t.silent)return;_renderTurn5(t);if(pendingUndo&&!pendingUndo.done){var und=t.el&&t.el.querySelector('.v3und');if(und){var entry=pendingUndo;pendingUndo=null;entry.done=true;/* 这句话只换了「本次看」的范围、没有往档案里写东西时，不出按钮 */if(entry.chips.length&&entry.chips.every(function(c){return /^本次看：/.test(c.t||'');}))return;var b=document.createElement('button');b.className='v3mini ghost';b.setAttribute('data-undo','1');b.textContent='不记入档案';b.title='这句话里的条件只用于这一次的结果，不写进我的档案';/* 按钮单独占一行：左边写「偏好已更新至档案」，右边是按钮 */var brk=document.createElement('span');brk.className='tag brk';und.appendChild(brk);var sv=document.createElement('span');sv.className='v4saved';sv.innerHTML='<i class="ti ti-circle-check"></i>偏好已更新至档案';und.appendChild(sv);und.appendChild(b);b.onclick=function(){keepOnce(entry,und,b);};b._undo=function(){undoAction(entry,und);};}}};
   /* undo：这次重出是某次写入引起的（修正句），撤销按钮要挂在这一块「AI 理解为」的末尾。出块前一刻才登记，不会被兜底的单独一行抢先 */
   function rerunNew(from,undo){if(!from||!from.kind||NEW_KINDS[from.kind])return;if(from.el)lockPick(from);var tn=newTurn();tn.kind=from.kind;tn.text=from.text;tn.skipped=from.skipped;tn.newKeys=from.newKeys||[];tn.noNew=!!from.noNew;tn.gone=from.gone||[];from.newKeys=null;from.noNew=false;from.gone=null;typing(function(){buildTurn(tn);if(undo)showUndo(undo.before,undo.chips);renderTurn(tn);if(mapShown())setSheet('half');});}
   rerunLast=function(){if(lastTurn&&lastTurn.kind)rerunNew(lastTurn);};
@@ -1705,7 +1708,7 @@ return null;}
   function undoAction(entry,el){if(entry.done2)return;entry.done2=true;restore(profile,entry.before);entry.chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();if(el)el.innerHTML='<span class="muted">已撤销，档案已恢复成上一份</span>';if(lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]){/* 重出时高亮被恢复的条件；修正句留下的「未限 / 已去掉」标签不带过去 */lastTurn.newKeys=entry.chips.map(function(c){return c.k||c.gk||c.rk;}).filter(Boolean);lastTurn.gone=null;lastTurn.noNew=false;addAI('按撤销后的条件重出结果：');rerunNew(lastTurn);}}
   /* 「AI 理解为」末尾的「不记入档案」：档案恢复成这句话之前的样子，这一组结果留着不动（条件只作用于这一次），不重出。
      用户打字说「撤销」仍走 undoAction：回滚档案并按回滚后的条件重出 */
-  function keepOnce(entry,und,b){if(entry.done2)return;entry.done2=true;restore(profile,entry.before);entry.chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();if(b)b.remove();var s=document.createElement('span');s.className='muted v4kept';s.textContent='本轮条件未记入档案';und.appendChild(s);}
+  function keepOnce(entry,und,b){if(entry.done2)return;entry.done2=true;restore(profile,entry.before);entry.chips.forEach(function(c){if(c.k)delete FSRC[c.k];});pref();if(b)b.remove();var sv=und.querySelector('.v4saved');if(sv)sv.remove();var s=document.createElement('span');s.className='muted v4kept';s.textContent='本轮条件未记入档案';und.appendChild(s);}
   function undoRow(entry){var r=document.createElement('div');r.className='row';r.innerHTML='<div class="av" style="background:var(--color-background-secondary);color:#0F6E56"><i class="ti ti-database"></i></div><div class="v4undo">已记入档案：'+entry.chips.map(function(c){return esc(c.t);}).join('、')+'<button class="v3mini ghost" data-undo="1">撤销</button></div>';list.appendChild(r);r.querySelector('[data-undo]').onclick=function(){undoAction(entry,r.querySelector('.v4undo'));};scroll();}
   showUndo=function(before,chips){var entry={before:before,chips:chips,done:false};pendingUndo=entry;setTimeout(function(){if(pendingUndo===entry&&!entry.done){pendingUndo=null;entry.done=true;undoRow(entry);}},1100);};
   /* 修正句去掉的条件：档案里已经没有值了，常规的「AI 理解为」不会再显示它，diffChips 也不报。这里列出来：
