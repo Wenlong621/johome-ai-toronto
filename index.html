@@ -240,6 +240,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -371,6 +372,12 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 /* 回答里的按钮行稍微收紧一点，让「把 X 加入到关注的城市」和「换一批」在窄屏上也能排在同一行 */
 #jhp .chat .v4box .qr{gap:4px}
 #jhp .chat .v4box .qr .q{padding:4px 8px}
+
+/* 「为你而选」块：每条理由一行，✓ 条件：事实；不符合的 ✗ 红字 */
+.v4fitrow{display:flex;gap:5px;align-items:flex-start}
+.v4fitrow i{flex:none;margin-top:3px;font-size:11px;color:#0F6E56}
+.v4fitrow b{font-weight:500}
+.v4fitrow.bad,.v4fitrow.bad i{color:#B23B2E}
 </style>
 </head>
 <body>
@@ -1098,6 +1105,10 @@ return null;}
     LPOOL.forEach(function(l){LIDX[l.id]=l;});return LPOOL;}
   function typeCN(t){return t==='Condo'?'公寓':t==='Townhouse'?'联排':t;}
   /* 房型五类：公寓 / 联排 / 1/2 Duplex / 独立屋 / 多户住宅。示例房源的 type 仍只有三种，1/2 Duplex 和多户住宅用 semi / multi 两个标记表示 */
+  /* 「为你而选」块里一条理由的写法：✓ 条件：事实；没有对应条件时只写事实；不符合的用 ✗ 红字排最前 */
+  function fitRow(p){var f=p['for'],bad=!!p.bad;return '<div class="v4fitrow'+(bad?' bad':'')+'"><i class="ti '+(bad?'ti-x':'ti-check')+'"></i><span>'+(f?('<b>'+esc(f)+'</b>：'):'')+(p.raw?p.fact:esc(p.fact))+'</span></div>';}
+  function fitRows(a){return a.map(fitRow).join('');}
+  function fitBullets(s){s=(s||'').replace(/硬条件/g,'条件');if(s.indexOf('· ')!==0)return s;return fitRows(s.slice(2).split('<br>· ').map(function(x){return {'for':'',fact:x,raw:1};}));}
   function ltype(l){return l.semi?'1/2 Duplex':l.multi?'多户住宅':l.type;}
   function ltypeCN(l){return typeCN(ltype(l));}
   /* 换相近房型用的顺序（工具文档 T1 1.4）：只加紧挨着的一级，每个相邻房型各算一项；已选的和被负向清单排除的不出 */
@@ -1149,7 +1160,7 @@ return null;}
   function runBatch(o){o=o||{};var p=o.profile||profile,pool=buildPool(),ds=gDisliked,opt=o.relax||{};
     var P1=pool.filter(function(l){return !(o.freshOnly&&!l.fresh)&&stage1(p,l,opt);}),P2=P1.filter(function(l){return stage2(p,l)&&!ds[l.id]&&!(o.exclude&&o.exclude[l.id]);});
     var strict=P2.length,P2s=P2;var lim=o.poolMax||40;if(P2s.length>lim){var br=budgetRange(p.budget),mid=br?(br[0]+br[1])/2:0;P2s=P2s.slice().sort(function(a,b){return (a.days-b.days);}).slice(0,lim);}
-    var items=rkOrder('listing',P2s.map(function(l){var sc=softScore(p,l);return {l:l,sc:sc,relax:[]};}),function(it){return ''+it.l.id;},o.cap||10,function(a,b){return a.l.days-b.l.days;},rkFactListing,(!o.profile||o.profile===profile)&&!o.freshOnly,function(it,w){it.sc.hits=w.slice();});
+    var items=rkOrder('listing',P2s.map(function(l){var sc=softScore(p,l);return {l:l,sc:sc,relax:[]};}),function(it){return ''+it.l.id;},o.cap||10,function(a,b){return a.l.days-b.l.days;},rkFactListing,(!o.profile||o.profile===profile)&&!o.freshOnly,function(it,w,prs){it.sc.hits=w.slice();it.sc.pairs=prs||null;});
     var b={id:'B'+(++batchSeq),P1:P1.length,P2:P2.length,strict:strict,relaxed:opt.labels||[],items:items,v:p._v||1,t:new Date()};lastBatch=b;return b;}
   function countWith(p,opt,exclude){var pool=buildPool(),n=0,i;for(i=0;i<pool.length;i++){var l=pool[i];if(stage1(p,l,opt)&&stage2(p,l)&&!gDisliked[l.id]&&!(exclude&&exclude[l.id]))n++;}return n;}
   /* 放宽选项池：每项预估能多出几套，按「改动最小、增量最大」取前 2–4 个；负向硬排除永不出现 */
@@ -1219,17 +1230,35 @@ return null;}
   /* 房源详情页顶栏：「问 AI」在右上、收藏旁边。吸底栏是现有 App 的经纪栏（头像、名字、联系方式），AI 的入口不占它 */
   function dhdAsk(t,id){return '<div class="hd"><i class="ti ti-arrow-left bk"></i><div style="flex:1;min-width:0;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t+'</div><button class="v4asktop" data-v3="ask" data-id="'+id+'"><i class="ti ti-sparkles"></i>问 AI</button><i class="ti ti-heart muted" style="font-size:19px"></i></div>';}
   /* 旧版房源详情页（社区页里的示例房源点进来）同样处理：「问 AI」挪到顶栏、收藏旁边，吸底换成经纪栏。按钮元素原样挪过去，点击行为不变 */
-  var _openListing2=openListing;openListing=function(label,invest){_openListing2(label,invest);Array.prototype.forEach.call(detail.querySelectorAll('.dscroll div'),function(d){if(!d.children.length&&d.textContent.indexOf('的硬条件')>=0)d.textContent=d.textContent.replace('的硬条件','的条件');});var bar=detail.querySelector('.inbar'),hd=detail.querySelector('.hd'),ask=bar&&bar.querySelector('[data-cta="ask"]');if(!bar||!hd||!ask)return;ask.className='v4asktop';ask.removeAttribute('style');ask.innerHTML='<i class="ti ti-sparkles"></i>问 AI';hd.insertBefore(ask,hd.lastElementChild);var tmp=document.createElement('div');tmp.innerHTML=agentBar();bar.parentNode.replaceChild(tmp.firstChild,bar);};
+  var _openListing2=openListing;openListing=function(label,invest){_openListing2(label,invest);(function(){var w=document.createTreeWalker(detail,NodeFilter.SHOW_TEXT,null),n;while((n=w.nextNode())){if(n.nodeValue.indexOf('为什么推给你')>=0)n.nodeValue=n.nodeValue.replace('为什么推给你','为你而选');if(n.nodeValue.indexOf('的硬条件')>=0)n.nodeValue=n.nodeValue.replace('的硬条件','的条件');}})();var bar=detail.querySelector('.inbar'),hd=detail.querySelector('.hd'),ask=bar&&bar.querySelector('[data-cta="ask"]');if(!bar||!hd||!ask)return;ask.className='v4asktop';ask.removeAttribute('style');ask.innerHTML='<i class="ti ti-sparkles"></i>问 AI';hd.insertBefore(ask,hd.lastElementChild);var tmp=document.createElement('div');tmp.innerHTML=agentBar();bar.parentNode.replaceChild(tmp.firstChild,bar);};
   /* 吸底栏：现有 App 的经纪栏（头像、名字、联系方式）。原型里只做示意，不属于 AI 功能，按钮不接流程 */
   function agentBar(){var an=V4.agentName||'',nm=an.replace(/^Johome\s*经纪\s*/,'')||an,tip='现有 App 的联系入口，原型不演示';
     return '<div class="inbar v4agbar"><div class="v4agav"><i class="ti ti-user"></i></div><div style="flex:1;min-width:0"><div class="v4agnm">'+esc(nm)+'</div><div class="muted" style="font-size:10.5px">Johome 经纪</div></div><button class="v4agbtn" title="'+tip+'"><i class="ti ti-phone"></i>电话</button><button class="v4agbtn" title="'+tip+'"><i class="ti ti-brand-wechat"></i>微信</button></div>';}
+  /* 房源详情页「为你而选」的内容：
+     ① 不符合的条件（✗，红字）排最前；② 排序模型给的理由（来自推荐结果时才有）；③ 按模板对照档案条件逐项列出命中的；
+     没有模型理由时，③ 之后补最多两条这套房突出的事实。每条都是 {for: 回应的条件, fact: 这套房的事实} */
+  function matchPairs(l){var p=profile,ok=[],bad=[],br=budgetRange(p.budget),d=nbData(l.nb,l.city);
+    if(br){var med=Math.round(d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9)),df=med?Math.round((med-l.price)/med*100):0;(l.price>=br[0]&&l.price<=br[1]?ok:bad).push({'for':'预算 '+p.budget,fact:'$'+l.price+'万'+(df>=3?('，低于同类中位价 '+df+'%'):'')});}
+    if(p.htype)(typeOK(l,p.htype)?ok:bad).push({'for':'房型 '+p.htype,fact:ltypeCN(l)});
+    var bd=parseInt(((p.beds||'').match(/\d/)||[0])[0],10);if(bd)(l.beds>=bd?ok:bad).push({'for':'卧室数 '+p.beds,fact:l.beds+' 室 '+l.baths+' 浴'});
+    var ar=areaRange(p.sqftMin);if(ar)((l.sqft>=ar[0]&&l.sqft<=ar[1])?ok:bad).push({'for':'面积 '+p.sqftMin,fact:l.sqft.toLocaleString()+' sqft'});
+    if(p.pet)(l.pets==='允许'?ok:bad).push({'for':'宠物友好',fact:l.pets==='允许'?'允许养宠物':'宠物有限制'});
+    if(p.nearTransit||/公交|天车|地铁/.test(p.mode||''))(l.rail<=1000?ok:bad).push({'for':'近轨道交通',fact:'距'+V4.rail+'站 '+l.rail+'m'});
+    avoidList(p).forEach(function(a){var lb=avoidLabel(a);if(a.hard){var hit=!stage2({avoid:[a]},l);(hit?bad:ok).push({'for':lb,fact:hit?'这套命中了这一项':'这套没有这个问题'});}else{var soft=(a.dim==='临街·噪音源'&&l.frontage)||(a.dim==='周边厌恶设施'&&l.nuisance);(soft?bad:ok).push({'for':lb,fact:soft?(a.dim==='临街·噪音源'?'这套可能临街':('附近有'+l.nuisance)):'这套没有这个问题'});}});
+    return {ok:ok,bad:bad};}
+  function listingFit(l,it){var mp=matchPairs(l),out=[],seen={},prs=(it&&it.sc&&it.sc.pairs)||null;
+    mp.bad.forEach(function(x){x.bad=1;out.push(x);});
+    if(prs&&prs.length)prs.forEach(function(x){out.push(x);if(x['for'])seen[x['for']]=1;});
+    mp.ok.forEach(function(x){if(!seen[x['for']])out.push(x);});
+    if(!(prs&&prs.length))((it&&it.sc&&it.sc.hits)||[]).filter(function(h){return !/中位|万|室|房|Townhouse|Condo|联排|公寓|独立屋/.test(h);}).filter(function(h){var k=h.replace(/\s+/g,'');return !out.some(function(x){var f=(x.fact||'').replace(/\s+/g,'');return f.indexOf(k)>=0||k.indexOf(f)>=0;});}).slice(0,2).forEach(function(h){out.push({'for':'',fact:h});});
+    if(!out.length)out.push({'for':'',fact:'符合你的条件'});return out;}
   function openListingV3(id){var it=findItem(id);if(!it)return;var l=it.l,ml=matchLines(l),risks=riskList(l),m=monthlyFor(l);
     var mets='<div class="met"><div class="v">'+l.year+'</div><div class="l">建成年份</div></div><div class="met"><div class="v">'+(l.fee?('$'+l.fee+' /月'):('$'+l.tax.toLocaleString()+' /年'))+'</div><div class="l">'+(l.fee?'月费':'地税')+'</div></div><div class="met"><div class="v">$'+m.pay.toLocaleString()+'</div><div class="l">月供'+(m.personal?'（按你的首付）':'（估算）')+'</div></div><div class="met"><div class="v">'+l.rail+'m</div><div class="l">距'+V4.rail+'站</div></div>';
-    var why=ml.bad.length?('<span style="color:#B23B2E">'+ml.bad[0]+'</span>；'):'';why+=(it.sc.hits.length?('符合：'+it.sc.hits.slice(0,4).join('、')):'符合你的条件')+(ml.ok.length?('；'+ml.ok.slice(0,2).join('、')):'')+'。';
+    var why=fitRows(listingFit(l,it));
     var relaxCard=(it.relaxed&&it.relaxed.length)?'<div class="cc" style="background:#FFF7E6;border-color:#F0D9A8"><div style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;color:#8A5A0B;margin-bottom:5px"><i class="ti ti-arrows-diff"></i>按你的选择放宽后推荐</div><div style="font-size:12px;line-height:1.55;color:#6B4E12">'+it.relaxed.map(function(x){return '· '+x;}).join('<br>')+'</div></div>':'';
     var risk=risks.length?'<div><div class="sec" style="margin-bottom:7px">风险与权衡</div>'+risks.map(function(r){return '<div class="cc" style="display:flex;gap:7px;align-items:flex-start;padding:8px 10px;margin-bottom:6px;font-size:12px;line-height:1.5"><i class="ti ti-alert-triangle" style="color:#B07A12;flex:none;margin-top:2px"></i>'+r+'</div>';}).join('')+'</div>':'';
     var fields='<div class="cc"><div class="sec">房源资料（示例字段）</div>'+[['MLS#',l.mls],['类型',ltypeCN(l)+(l.levels?(' · '+l.levels+' 层'):'')],['面积',l.sqft.toLocaleString()+' sqft'],['朝向',l.expo],['车位',l.parkN+' 位 · '+l.parkType],['宠物',l.pets],['出租',l.rentals],l.type==='Condo'?['电梯',l.elevator?'有':'无']:['地下室',l.basement?'有':'无'],['产权',l.lease?'Leasehold':'Freehold'],['建筑结构',lConstr(l)],['壁炉',lFire(l)?'有':'无'],['地税','$'+l.tax.toLocaleString()+' /年'],['学区评分',l.school]].map(function(r){return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-top:0.5px solid var(--color-border-tertiary)"><span class="muted">'+r[0]+'</span><span>'+r[1]+'</span></div>';}).join('')+'</div>';
-    openPage(dhdAsk('$'+l.price+'万 · '+l.nb,l.id)+'<div class="dscroll"><div style="height:148px;background:var(--color-background-secondary);border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;position:relative"><i class="ti ti-photo" style="font-size:30px;color:var(--color-text-tertiary)"></i><span class="tag" style="position:absolute;left:10px;top:10px;background:var(--color-background-primary)">示例数据</span></div><div><div style="font-size:20px;font-weight:500">$'+l.price+'万</div><div class="muted" style="font-size:12.5px">'+l.beds+' 床 '+l.baths+' 浴 · '+ltypeCN(l)+' · '+l.sqft.toLocaleString()+' sqft · '+l.nb+'（'+l.city+'）</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+mets+'</div>'+relaxCard+fitcard(why).replace('为你而选','为什么推给你')+risk+fields+'</div>'+agentBar());}
+    openPage(dhdAsk('$'+l.price+'万 · '+l.nb,l.id)+'<div class="dscroll"><div style="height:148px;background:var(--color-background-secondary);border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;position:relative"><i class="ti ti-photo" style="font-size:30px;color:var(--color-text-tertiary)"></i><span class="tag" style="position:absolute;left:10px;top:10px;background:var(--color-background-primary)">示例数据</span></div><div><div style="font-size:20px;font-weight:500">$'+l.price+'万</div><div class="muted" style="font-size:12.5px">'+l.beds+' 床 '+l.baths+' 浴 · '+ltypeCN(l)+' · '+l.sqft.toLocaleString()+' sqft · '+l.nb+'（'+l.city+'）</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+mets+'</div>'+relaxCard+fitcard(why)+risk+fields+'</div>'+agentBar());}
   var ASK_CHIPS=['这套房值不值','我买得起吗','月费含什么',V4.catchWord+'学校','通勤到我公司','有什么风险','和我的条件匹配吗'];
   function askAnswer(l,q){var p=profile,d=nbData(l.nb,l.city);
     if(/买得起|负担|首付够|月供多少/.test(q))return affordAnswerListing(l);
@@ -2320,16 +2349,31 @@ return null;}
     pf.order.concat(all).forEach(function(n){if(seen[n])return;seen[n]=1;if(!(useZone?ZONES[n]:CITYCARD[n])||regExcluded(n)||(t.excludeNames&&t.excludeNames.indexOf(n)>=0))return;out.push({n:n,s:pf.score[n]||0});});return out;}
 
   /* ---------- 模型调用 ---------- */
-  var RK_SCHEMA={type:'object',properties:{ranked:{type:'array',items:{type:'object',properties:{name:{type:'string'},why:{type:'array',items:{type:'string'}}},required:['name','why'],additionalProperties:false}}},required:['ranked'],additionalProperties:false};
-  function rkSystem(){return ['你是 Johome 找房 Agent（'+V4.region+'）的排序模块。规则已经用硬条件把候选池圈好，你只负责在 pool 里排序并为入选的候选写理由，输出 JSON。',
-    '规则：',
-    '1. 只能从 pool 里选，name 必须与 pool 里的 name 完全一致，不新增、不改写。',
+  var RK_SCHEMA={type:'object',properties:{ranked:{type:'array',items:{type:'object',properties:{name:{type:'string'},why:{type:'array',items:{type:'object',properties:{'for':{type:'string'},fact:{type:'string'}},required:['for','fact'],additionalProperties:false}}},required:['name','why'],additionalProperties:false}}},required:['ranked'],additionalProperties:false};
+  /* 「为你而选」的生成格式：每条理由 = {for, fact}。for 是它回应的用户条件（照抄输入里的原文，没有可回应的填空），fact 是这个候选对应的事实短语。
+     卡片和导语里只显示 fact，用「·」连接；详情页的「为你而选」块每条一行，写成「✓ for：fact」。这段 prompt 与 PRD 7.4 的文字保持一致 */
+  function rkSystem(){return ['你是 Johome 找房 Agent（'+V4.region+'）的排序模块。候选池已经按用户的筛选条件圈好，你只做两件事：在 pool 里排先后；为入选的每个候选写「为你而选」。只输出 JSON。',
+    '',
+    '输入是一个 JSON：card = 这次出哪类卡（房源 / 社区 / 生活圈 / 城市 / 学校 / 商圈）；need = 要返回几个；「本轮条件」= 用户这句话刚提出的条件和评判标准，其中的「不要」是这句话刚说要避开的；「软条件」= 档案里已有、只影响先后的偏好；「尽量避开」= 档案里的负向偏好；「硬条件」= 已经用来筛过候选池的条件，只供写理由时引用；pool = 候选列表，每个候选有 name 和事实字段。',
+    '',
+    '排序：',
+    '1. 只能从 pool 里选，name 必须与 pool 里的完全一致，不新增、不改写。',
     '2. 按候选与用户条件的贴合程度从高到低排，返回前 need 个；pool 不足 need 个时全部返回。',
-    '3. 「本轮条件」是用户这句话刚提出的，优先级最高：先按它排（其中的「不要」是用户这句话刚说要避开的），再考虑「软条件」里档案已有的条件。命中「尽量避开」的候选往后排。「硬条件」已由规则筛过，不要再用它淘汰候选，但可以用来写理由（如预算内房源占比）。',
-    '4. 每个入选候选写 why：2–3 条「为你而选」的理由。card 是房源时每条不超过 10 个字，其他不超过 16 个字。有本轮条件时第一条必须回应本轮条件。',
-    '5. 理由里的事实和数字只能来自该候选在 pool 里的字段，数字原样引用，不要编造。条件没有直接对应的字段时，用相关字段判断（如用中餐馆、亚洲超市的数量回应「华人生活」）；没有任何相关字段就不写这一条。',
-    '6. 不对族群下绝对结论（不说「最适合华人」「华人最多」），改说配套事实。不用「最安全」「最好」这类绝对说法。不预测房价。',
-    '7. 没有任何本轮条件和软条件时，按候选自身的综合情况排（房源：新上架、价格在预算中段；区域：预算内供给多），理由写候选最突出的事实。'].join('\n');}
+    '3. 先按「本轮条件」排，再按「软条件」；命中「尽量避开」的候选往后排。「硬条件」已经筛过，不要再用它淘汰候选。',
+    '4. card 是社区或学校时有固定的先后：「预算内房源占比」为 0% 的排最后；其余先按本轮条件，再按预算内房源占比高低，再按其他软条件。card 是城市、生活圈、商圈时，预算内房源占比和「满足…的社区占比」只是参考事实之一，占比低的往后排。预算和房型在区域类卡里不是筛选条件。',
+    '5. 没有任何本轮条件和软条件时，按候选自身的情况排（房源：新上架、价格在预算中段；区域：预算内供给多）。',
+    '',
+    '「为你而选」：',
+    '6. 每个入选候选写 2–3 条 why，每条是 {"for": "...", "fact": "..."}。for = 这条回应的是用户的哪个条件，照抄输入里「本轮条件 / 软条件 / 尽量避开 / 硬条件」中的原文，不改写、不合并；没有可回应的条件时填空字符串。fact = 这个候选对应的事实，写成短语，不成句、不带句末标点；card 是房源时不超过 10 个字，其他不超过 16 个字。',
+    '7. 顺序：有本轮条件时第一条必须回应本轮条件，之后回应软条件；同一个条件只写一条。',
+    '8. 所有入选候选都满足的硬条件（在预算内、房型、卧室数）不当理由写，除非能给出有区分度的事实（如「低于同类中位价 9%」「预算内房源占 93%」）。',
+    '9. fact 里的事实和数字只能来自该候选在 pool 里的字段，数字原样引用，不编造。条件没有直接对应的字段时，用相关字段回应（如用中餐馆、亚洲超市的数量回应「适合华人生活」）；没有任何相关字段就不写这一条。',
+    '10. 字段没有传 = 不知道，不能写成「没有」。',
+    '11. 不对族群下结论（不说「最适合华人」「华人最多」），只说配套事实；不用「最安全」「最好」这类绝对说法；不预测房价。',
+    '12. 没有任何本轮条件和软条件时，for 填空字符串，fact 写候选最突出的事实。',
+    '',
+    '输出：{"ranked":[{"name":"...","why":[{"for":"...","fact":"..."}]}]}，ranked 按排好的先后。'].join('\n');}
+  var rkPairs={};
   function rkCall(payload){var body={model:MX.model,max_tokens:2500,system:rkSystem(),output_config:{effort:'low',format:{type:'json_schema',schema:RK_SCHEMA}},messages:[{role:'user',content:JSON.stringify(payload)}]};
     var req=fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){if(j.stop_reason==='refusal')throw new Error('模型拒绝了这次排序');var txt=(j.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');if(!txt)throw new Error('模型没有返回内容');var res;try{res=JSON.parse(txt);}catch(e){throw new Error('返回不是合法 JSON');}if(!res||!Array.isArray(res.ranked)||!res.ranked.length)throw new Error('没有返回排序');return res;});
     var to=new Promise(function(ok,rej){setTimeout(function(){rej(new Error('超时'));},RK.timeout);});
@@ -2345,10 +2389,10 @@ return null;}
       if(t){var pool=list.slice(0,RK_CAP[kind]||30),pl=rkPayload(t,kind,pool.map(factFn),Math.min(n,pool.length)),key=poolKey+'|'+JSON.stringify([pl['本轮条件'],pl['软条件'],pl['尽量避开'],pl['硬条件'],pl.need]);hit=RK.cache[key]||null;
         if(!hit){if(mxOn()&&!RK.fail[key])t.rkNeed={key:key,poolKey:poolKey,payload:pl,kind:kind};else t.rk={src:mxOn()?'fail':'nokey',err:RK.fail[key]||'',kind:kind,pool:list.length};}}
       else hit=RK.byPool[poolKey]||null;}
-    if(!hit){list.slice(0,n).forEach(function(x){delete rkWhy[kind+':'+nameFn(x)];});return list.slice(0,n);}
+    if(!hit){list.slice(0,n).forEach(function(x){delete rkWhy[kind+':'+nameFn(x)];delete rkPairs[kind+':'+nameFn(x)];});return list.slice(0,n);}
     var by={},seen={},out=[];list.forEach(function(x){by[nameFn(x)]=x;});
-    hit.ranked.forEach(function(r){var nm=r&&(''+r.name),x=by[nm];if(!x||seen[nm]||out.length>=n)return;seen[nm]=1;out.push(x);var w=(r.why||[]).map(function(s){return (''+s).trim();}).filter(Boolean).slice(0,3);if(w.length){rkWhy[kind+':'+nm]=w;if(setWhy)setWhy(x,w);}else delete rkWhy[kind+':'+nm];});
-    list.forEach(function(x){var nm=nameFn(x);if(out.length<n&&!seen[nm]){seen[nm]=1;out.push(x);delete rkWhy[kind+':'+nm];}});
+    hit.ranked.forEach(function(r){var nm=r&&(''+r.name),x=by[nm];if(!x||seen[nm]||out.length>=n)return;seen[nm]=1;out.push(x);var prs=(r.why||[]).map(function(s){return typeof s==='string'?{'for':'',fact:s.trim()}:{'for':(''+((s&&s['for'])||'')).trim(),fact:(''+((s&&s.fact)||'')).trim()};}).filter(function(q){return q.fact;}).slice(0,3),w=prs.map(function(q){return q.fact;});if(w.length){rkWhy[kind+':'+nm]=w;rkPairs[kind+':'+nm]=prs;if(setWhy)setWhy(x,w,prs);}else{delete rkWhy[kind+':'+nm];delete rkPairs[kind+':'+nm];}});
+    list.forEach(function(x){var nm=nameFn(x);if(out.length<n&&!seen[nm]){seen[nm]=1;out.push(x);delete rkWhy[kind+':'+nm];delete rkPairs[kind+':'+nm];}});
     if(t)t.rk={src:'model',kind:kind,pool:Math.min(list.length,RK_CAP[kind]||30),ms:hit.ms};
     return out;}
 
@@ -2383,8 +2427,8 @@ return null;}
   /* 城市问答里由模型挑的卡（p7）也用同样的分行格式 */
   var _axApply10=axApply;axApply=function(t){_axApply10(t);if(t.llmMode!=='recommend'||!t.llmRes||!t.pick||!t.pick.names.length||!t.lead)return;var i=t.lead.indexOf('为你挑选了这'),by={};if(i<0)return;(t.llmRes.picks||[]).forEach(function(x){if(x&&x.name)by[x.name]=(''+(x.why||'')).split('、');});
     t.lead=t.lead.slice(0,i)+'为你挑选了这 '+t.pick.names.length+PICK_NOUN[t.pick.kind]+'：'+pfLeadRows(t.pick.names.map(function(nm){return {name:nm,why:by[nm]||[]};}));};
-  var _fitFor10=fitFor;fitFor=function(name,city){var k='nb',w;try{k=areaTraits(name,city).kind||'nb';}catch(e){}w=rkWhy[k+':'+name]||rkWhy['zone:'+name]||rkWhy['city:'+name]||rkWhy['nb:'+name];if(w&&w.length)return '· '+w.map(esc).join('<br>· ');return _fitFor10(name,city);};
-  var _fitForSchool10=fitForSchool;fitForSchool=function(name,inf){var w=rkWhy['school:'+name];if(w&&w.length)return '· '+w.map(esc).join('<br>· ');return _fitForSchool10(name,inf);};
+  var _fitFor10=fitFor;fitFor=function(name,city){var k='nb',w;try{k=areaTraits(name,city).kind||'nb';}catch(e){}w=rkWhy[k+':'+name]||rkWhy['zone:'+name]||rkWhy['city:'+name]||rkWhy['nb:'+name];if(w&&w.length){var pr=rkPairs[k+':'+name]||rkPairs['zone:'+name]||rkPairs['city:'+name]||rkPairs['nb:'+name];return fitRows(pr&&pr.length?pr:w.map(function(f){return {'for':'',fact:f};}));}return fitBullets(_fitFor10(name,city));};
+  var _fitForSchool10=fitForSchool;fitForSchool=function(name,inf){var w=rkWhy['school:'+name];if(w&&w.length){var pr=rkPairs['school:'+name];return fitRows(pr&&pr.length?pr:w.map(function(f){return {'for':'',fact:f};}));}return fitBullets(_fitForSchool10(name,inf));};
   /* 选社区 / 生活圈 / 城市时，句子自带的评判标准已经作为本轮条件进了排序，不再走 p7 的「模型挑卡」 */
   var _axMode10=axMode;axMode=function(t){var m=_axMode10(t);return (m==='recommend'&&t.kind!=='qa')?'':m;};
   /* ---------- 每日推荐：资格达成即默认开启，不询问；只提示一次去打开系统通知（没开通知也照常执行，下次打开时显示） ---------- */
@@ -2608,7 +2652,7 @@ return null;}
   var _rkFactNb11=rkFactNb;rkFactNb=function(r){var o=_rkFactNb11(r),c=RK.cur&&RK.cur.circ;if(lastIsoMiss)delete o['通勤'];if(c&&c.near&&c.near[r[0]])o['附近商圈']=c.near[r[0]]+'（'+c.cats.join('、')+'齐全）';return o;};
   var _rkFactDistrict11=rkFactDistrict;rkFactDistrict=function(d){var o=_rkFactDistrict11(d);factCov(o,d._cov!==undefined?d._cov:covDistrict(d),'周边预算内房源占比');return o;};
   var _rkFactSchool11=rkFactSchool;rkFactSchool=function(x){var o=_rkFactSchool11(x),s=x._s||scBy(x[0]);if(s){o['学校类型']=s.type+(s.gender!=='混校'?(' · '+s.gender):'');if(s.progs.length)o['课程项目']=s.progs.join('、');if(s.city)o['城市']=s.city;}factCov(o,x._cov!==undefined?x._cov:covSchool(x[0]),V4.catchWord+'范围内预算内房源占比');return o;};
-  var _rkSystem11=rkSystem;rkSystem=function(){return _rkSystem11()+'\n8. card 是社区或学校时有固定的先后：「预算内房源占比」为 0% 的排最后；其余先按本轮条件，再按预算内房源占比高低，再按其他软条件。card 是城市、生活圈、商圈时，预算内房源占比和「满足…的社区占比」只是排序参考的事实之一，占比低的往后排。预算和房型在区域类卡里不是筛选条件。';};
+  var _rkSystem11=rkSystem;rkSystem=function(){return _rkSystem11();};
 
   /* ---------- 没有模型理由时的模板理由：补上覆盖率、空间条件 ---------- */
   function whyAdd(s,extra,front){var i=s.indexOf('：');if(i<0)return s;var parts=s.slice(i+1).split('、').filter(Boolean);extra=extra.filter(function(x){return x&&parts.indexOf(x)<0;});if(!extra.length)return s;parts=front?extra.concat(parts):parts.slice(0,Math.max(0,3-extra.length)).concat(extra);return s.slice(0,i+1)+parts.slice(0,3).join('、');}
