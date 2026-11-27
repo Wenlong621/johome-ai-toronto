@@ -253,6 +253,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1188,7 +1189,9 @@ return null;}
       case '车位':if(/无车位/.test(v)&&l.parkN===0)return false;if(/Exclusive/.test(v)&&l.parkType==='Exclusive')return false;break;
       case '洪泛区':if(l.flood)return false;break;
       case '年龄限制楼':if(l.age55)return false;break;}}return true;}
-  function softScore(p,l){var s=0,hits=[],neg=[];avoidList(p).forEach(function(a){if(a.hard)return;if(a.dim==='临街·噪音源'&&l.frontage){s-=3;neg.push('可能临街');}if(a.dim==='周边厌恶设施'&&l.nuisance){s-=3;neg.push('附近有'+l.nuisance);}});
+  /* 模型标出的命中项里，for 是照抄的「维度：值」；换成给用户看的说法（不要 X） */
+  function avoidFor(p,s){s=''+(s||'');var hit=null;avoidList(p).forEach(function(a){if(!hit&&a.value&&s.indexOf(a.value)>=0)hit=a;});return hit?avoidLabel(hit):s.replace(/^[^：:]*[：:]\s*/,'');}
+  function softScore(p,l){var s=0,hits=[],neg=[];/* 软的负向项没有结构化字段可比对，代码判断不了命中：neg 留空，由排序模型标出后在 runBatch 里填 */
     if(/安静/.test(p.vibe||'')||/安逸/.test(p.tone||'')){if(!l.frontage){s+=1;hits.push('非临街');}else s-=1;}
     if(p.view&&l.view===p.view){s+=2;hits.push(l.view);}
     if(p.nearTransit||/公交|天车|地铁/.test(p.mode||'')){if(l.rail<=800){s+=1;hits.push('距'+V4.rail+'站 '+l.rail+'m');}}
@@ -1203,7 +1206,9 @@ return null;}
     var P1=pool.filter(function(l){return !(o.freshOnly&&!l.fresh)&&stage1(p,l,opt);}),P2=P1.filter(function(l){return stage2(p,l)&&!ds[l.id]&&!(o.exclude&&o.exclude[l.id]);});
     var strict=P2.length,P2s=P2;var lim=o.poolMax||40;if(P2s.length>lim){var br=budgetRange(p.budget),mid=br?(br[0]+br[1])/2:0;P2s=P2s.slice().sort(function(a,b){return (a.days-b.days);}).slice(0,lim);}
     var items=rkOrder('listing',P2s.map(function(l){var sc=softScore(p,l);return {l:l,sc:sc,relax:[]};}),function(it){return ''+it.l.id;},o.cap||10,function(a,b){return a.l.days-b.l.days;},rkFactListing,(!o.profile||o.profile===profile)&&!o.freshOnly,function(it,w,prs){it.sc.hits=w.slice();it.sc.pairs=prs||null;});
-    /* 软的负向项没有结构化字段可比对，代码判断不了哪套命中：先后完全由排序模型决定（规则写在 rkSystem 第 3 条），这里不再调整顺序 */
+    /* 软的负向项没有结构化字段可比对，代码判断不了哪套命中：先后完全由排序模型决定（规则写在 rkSystem 第 3 条），这里不调整顺序。
+       模型同时标出哪套命中了哪条（rkSystem 第 7 条）：卡片上的警示用它给的事实，详情页的不符合项用 negPairs。没走模型（失败 / 没开）就没有警示 */
+    items.forEach(function(it){var hs=(it.avHits||[]).map(function(h){return {'for':avoidFor(p,h['for']),fact:h.fact};});it.sc.neg=hs.map(function(h){return h.fact;});it.sc.negPairs=hs;});
     var b={id:'B'+(++batchSeq),P1:P1.length,P2:P2.length,strict:strict,relaxed:opt.labels||[],items:items,v:p._v||1,t:new Date()};lastBatch=b;return b;}
   function countWith(p,opt,exclude){var pool=buildPool(),n=0,i;for(i=0;i<pool.length;i++){var l=pool[i];if(stage1(p,l,opt)&&stage2(p,l)&&!gDisliked[l.id]&&!(exclude&&exclude[l.id]))n++;}return n;}
   /* 放宽选项池：每项预估能多出几套，按「改动最小、增量最大」取前 2–4 个；负向硬排除永不出现 */
@@ -1287,10 +1292,11 @@ return null;}
     var ar=areaRange(p.sqftMin);if(ar)((l.sqft>=ar[0]&&l.sqft<=ar[1])?ok:bad).push({'for':'面积 '+p.sqftMin,fact:'面积 '+l.sqft.toLocaleString()+' sqft'});
     if(p.pet)(l.pets==='允许'?ok:bad).push({'for':'宠物友好',fact:l.pets==='允许'?'允许养宠物':'宠物有限制'});
     if(p.nearTransit||/公交|天车|地铁/.test(p.mode||''))(l.rail<=1000?ok:bad).push({'for':'近轨道交通',fact:'距'+V4.rail+'站 '+l.rail+'m'});
-    avoidList(p).forEach(function(a){var lb=avoidLabel(a);if(a.hard){var hit=!stage2({avoid:[a]},l);(hit?bad:ok).push({'for':lb,fact:hit?'这套有这个问题':'这套没有这个问题'});}else{var soft=(a.dim==='临街·噪音源'&&l.frontage)||(a.dim==='周边厌恶设施'&&l.nuisance);(soft?bad:ok).push({'for':lb,fact:soft?(a.dim==='临街·噪音源'?'这套可能临街':('附近有'+l.nuisance)):'这套没有这个问题'});}});
+    avoidList(p).forEach(function(a){var lb=avoidLabel(a);if(a.hard){var hit=!stage2({avoid:[a]},l);(hit?bad:ok).push({'for':lb,fact:hit?'这套有这个问题':'这套没有这个问题'});}/* 软的负向项代码判断不了，命中的由排序模型标出（listingFit 从 it.sc.negPairs 取），没标出的不写 */});
     return {ok:ok,bad:bad};}
   function listingFit(l,it){var mp=matchPairs(l),out=[],seen={},prs=(it&&it.sc&&it.sc.pairs)||null;
     mp.bad.forEach(function(x){x.bad=1;out.push(x);});
+    ((it&&it.sc&&it.sc.negPairs)||[]).forEach(function(x){out.push({'for':x['for'],fact:x.fact,bad:1});if(x['for'])seen[x['for']]=1;});
     if(prs&&prs.length)prs.forEach(function(x){out.push(x);if(x['for'])seen[x['for']]=1;});
     mp.ok.forEach(function(x){if(!seen[x['for']])out.push(x);});
     if(!(prs&&prs.length))((it&&it.sc&&it.sc.hits)||[]).filter(function(h){return !/中位|万|室|房|Townhouse|Condo|联排|公寓|独立屋/.test(h);}).filter(function(h){var k=h.replace(/\s+/g,'');return !out.some(function(x){var f=(x.fact||'').replace(/\s+/g,'');return f.indexOf(k)>=0||k.indexOf(f)>=0;});}).slice(0,2).forEach(function(h){out.push({'for':'',fact:h});});
@@ -2392,7 +2398,8 @@ return null;}
     pf.order.concat(all).forEach(function(n){if(seen[n])return;seen[n]=1;if(!(useZone?ZONES[n]:CITYCARD[n])||regExcluded(n)||(t.excludeNames&&t.excludeNames.indexOf(n)>=0))return;out.push({n:n,s:pf.score[n]||0});});return out;}
 
   /* ---------- 模型调用 ---------- */
-  var RK_SCHEMA={type:'object',properties:{ranked:{type:'array',items:{type:'string'}}},required:['ranked'],additionalProperties:false};
+  var /* avoid 放在 ranked 前面：让模型先逐个判断命中，再排先后 */
+  RK_SCHEMA={type:'object',properties:{avoid:{type:'array',items:{type:'object',properties:{name:{type:'string'},'for':{type:'string'},fact:{type:'string'}},required:['name','for','fact'],additionalProperties:false}},ranked:{type:'array',items:{type:'string'}}},required:['avoid','ranked'],additionalProperties:false};
   /* 排序和写「为你而选」是两个任务、两次调用（PRD 7.4）：
      排序只返回顺序；「为你而选」只给马上要展示的这一批写，换一批时再为下一批写。两份 prompt 与 PRD 的文字保持一致 */
   function rkSystem(){return ['你是 Johome 找房 Agent（'+V4.region+'）的排序模块。候选池已经按用户的筛选条件圈好，你只负责在 pool 里排先后。只输出 JSON。',
@@ -2406,7 +2413,9 @@ return null;}
     '5. 没有任何本轮条件和软条件时，按候选自身的情况排（房源：新上架、价格在预算中段；区域：预算内供给多）。',
     '6. 字段没有传 = 不知道，不能当成「没有」。',
     '',
-    '输出：{"ranked":["name1","name2"]}，只有候选的 name，按排好的先后。'].join('\n');}
+    '7. avoid 里列出 pool 中每一个命中了用户要避开的东西的候选，每命中一条写一项：name = 候选的 name；for = 命中的是哪一条，照抄「尽量避开」或「不要」里的原文；fact = 这个候选撞上它的事实，写成给用户看的短语，不超过 8 个字，如「可能临街」。没有命中的候选不写；一个都没有时 avoid 为空数组。avoid 里出现的候选，在 ranked 里必须排在所有没出现的候选之后。',
+    '',
+    '输出：{"avoid":[{"name":"name3","for":"…","fact":"…"}],"ranked":["name1","name2","name3"]}。先写 avoid，再写 ranked；ranked 只有候选的 name，按排好的先后。'].join('\n');}
   var WHY_SCHEMA={type:'object',properties:{items:{type:'array',items:{type:'object',properties:{name:{type:'string'},why:{type:'array',items:{type:'object',properties:{'for':{type:'string'},fact:{type:'string'}},required:['for','fact'],additionalProperties:false}}},required:['name','why'],additionalProperties:false}}},required:['items'],additionalProperties:false};
   function whySystem(){return ['你是 Johome 找房 Agent（'+V4.region+'）的推荐理由模块。下面这几个候选已经选定、马上要展示给用户，你只负责为每一个写「为你而选」：它为什么适合这位用户。不要调整顺序，不要增删候选。只输出 JSON。',
     '',
@@ -2428,7 +2437,7 @@ return null;}
     var req=fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){if(j.stop_reason==='refusal')throw new Error('模型拒绝了这次'+errName);var txt=(j.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');if(!txt)throw new Error('模型没有返回内容');try{return JSON.parse(txt);}catch(e){throw new Error('返回不是合法 JSON');}});
     var to=new Promise(function(ok,rej){setTimeout(function(){rej(new Error('超时'));},RK.timeout);});return Promise.race([req,to]);}
   function whyCall(payload){return mxJSON(whySystem(),WHY_SCHEMA,payload,1200,'推荐理由').then(function(res){if(!res||!Array.isArray(res.items)||!res.items.length)throw new Error('没有返回理由');return res;});}
-  function rkCall(payload){var body={model:MX.model,max_tokens:800,system:rkSystem(),output_config:{effort:'low',format:{type:'json_schema',schema:RK_SCHEMA}},messages:[{role:'user',content:JSON.stringify(payload)}]};
+  function rkCall(payload){var body={model:MX.model,max_tokens:1500,system:rkSystem(),output_config:{effort:'low',format:{type:'json_schema',schema:RK_SCHEMA}},messages:[{role:'user',content:JSON.stringify(payload)}]};
     var req=fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){if(j.stop_reason==='refusal')throw new Error('模型拒绝了这次排序');var txt=(j.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');if(!txt)throw new Error('模型没有返回内容');var res;try{res=JSON.parse(txt);}catch(e){throw new Error('返回不是合法 JSON');}if(!res||!Array.isArray(res.ranked)||!res.ranked.length)throw new Error('没有返回排序');return res;});
     var to=new Promise(function(ok,rej){setTimeout(function(){rej(new Error('超时'));},RK.timeout);});
     return Promise.race([req,to]);}
@@ -2450,6 +2459,8 @@ return null;}
     var by={},seen={},out=[];list.forEach(function(x){by[nameFn(x)]=x;});
     hit.ranked.forEach(function(r){var nm=''+((r&&typeof r==='object')?r.name:r),x=by[nm];if(!x||seen[nm]||out.length>=n)return;seen[nm]=1;out.push(x);rkWhySync(kind,nm,x,setWhy);});
     list.forEach(function(x){var nm=nameFn(x);if(out.length<n&&!seen[nm]){seen[nm]=1;out.push(x);rkWhySync(kind,nm,x,setWhy);}});
+    /* 模型标出的命中项挂到候选上（房源卡的警示、详情页的不符合项都从这里取）；没走模型时候选上没有这一项 */
+    var av={};(hit.avoid||[]).forEach(function(h){if(!h||h.name==null||!h.fact)return;var k=''+h.name;(av[k]=av[k]||[]).push({'for':h['for']||'',fact:''+h.fact});});out.forEach(function(x){x.avHits=av[nameFn(x)]||[];});
     if(t)t.rk={src:'model',kind:kind,pool:Math.min(list.length,RK_CAP[kind]||30),ms:hit.ms};
     return out;}
 
@@ -2460,7 +2471,7 @@ return null;}
     if(rk.src!=='model'&&rk.kind==='listing'&&t.lead)t.lead=t.lead.replace(/按你的偏好排序，这 (\d+) 套最匹配/,'先看最新上架的 $1 套');}
   function rkStart(t){var need=t.rkNeed,keep={lead:t.lead,html:t.html,layers:t.layers,pick:t.pick,extra:t.extra,relaxOpts:t.relaxOpts},t0=Date.now(),sig=JSON.stringify(profile);t.rkNeed=null;t.rkPending=true;t.rkChain=(t.rkChain||0)+1;
     t.lead='<span class="muted">正在按你的条件给 '+need.payload.pool.length+' 个候选排序…</span>';t.html='';t.layers=null;t.pick=null;t.extra=[];t.relaxOpts=[];RK.last={key:need.key,payload:need.payload,res:null,err:''};
-    rkCall(need.payload).then(function(res){var c={ranked:res.ranked,ms:Date.now()-t0};RK.cache[need.key]=c;RK.byPool[need.poolKey]=c;RK.last.res=res;},function(e){RK.fail[need.key]=(e&&e.message)||String(e);RK.last.err=RK.fail[need.key];}).then(function(){t.rkPending=false;
+    rkCall(need.payload).then(function(res){var c={ranked:res.ranked,avoid:Array.isArray(res.avoid)?res.avoid:[],ms:Date.now()-t0};RK.cache[need.key]=c;RK.byPool[need.poolKey]=c;RK.last.res=res;},function(e){RK.fail[need.key]=(e&&e.message)||String(e);RK.last.err=RK.fail[need.key];}).then(function(){t.rkPending=false;
       t.extra=keep.extra;
       if(JSON.stringify(profile)!==sig||!t.el){/* 等结果时档案已经变了（用户说了下一句）：不拿新档案重算旧回合，放回刚才圈好的默认顺序 */t.lead=keep.lead;t.html=keep.html;t.layers=null;t.pick=keep.pick;t.relaxOpts=keep.relaxOpts;renderTurn(t);return;}
       t.asks=null;buildTurn(t);renderTurn(t);if(t.layers&&mapShown())setSheet('half');});}
