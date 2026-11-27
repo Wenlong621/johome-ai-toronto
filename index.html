@@ -259,6 +259,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1648,7 +1649,7 @@ return null;}
     'set 里每项是 {k, v}：k 取字段表里的字段键，v 是该字段的完整新值。字段表（k = 字段键，values = 允许值）：'+JSON.stringify(mxFieldSpec()),
     '负向维度：'+JSON.stringify(MX_DIMS)].join('\n');}
   var MX_SCHEMA={type:'object',properties:{set:{type:'array',description:'要写入的字段：k 为字段键，v 为完整新值',items:{type:'object',properties:{k:{type:'string'},v:{type:'string'}},required:['k','v'],additionalProperties:false}},clear:{type:'array',description:'要清空的字段 k',items:{type:'string'}},avoid:{type:'array',items:{type:'object',properties:{dim:{type:'string'},value:{type:'string'},hard:{type:'boolean'}},required:['dim','value','hard'],additionalProperties:false}},note:{type:'string'},intent:{type:'string',enum:['listing','nb','zone','city','school','district','afford','stress','market','qa','compare','knowledge','timing','narrative','browse','correction','ref','more','daily','ack','who','agentq','advice','share','offtopic','closing'],description:'这句话的意图类别'}},required:['set','clear','avoid','note','intent'],additionalProperties:false};
-  function mxCall(t){var body={model:MX.model,max_tokens:1024,system:mxSystem(),output_config:{effort:'low',format:{type:'json_schema',schema:MX_SCHEMA}},messages:[{role:'user',content:'当前档案：'+JSON.stringify(mxCurrent())+'\n用户这句话：「'+t+'」'}]};
+  function mxCall(t){var body={model:MX.model,max_tokens:1024,system:mxSystem(),output_config:{effort:'low',format:{type:'json_schema',schema:MX_SCHEMA}},messages:[{role:'user',content:'当前档案：'+JSON.stringify(mxCurrent())+mxState()+'\n用户这句话：「'+t+'」'}]};
     return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':MX.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));return j;});}).then(function(j){if(j.stop_reason==='refusal')throw new Error('模型拒绝了这句（'+((j.stop_details&&j.stop_details.category)||'refusal')+'）');var txt=(j.content||[]).filter(function(x){return x.type==='text';}).map(function(x){return x.text;}).join('');if(!txt)throw new Error('模型没有返回变更集');var o;try{o=JSON.parse(txt);}catch(e){throw new Error('变更集不是合法 JSON');}var set={},i;for(i=0;i<(o.set||[]).length;i++)if(o.set[i]&&o.set[i].k)set[o.set[i].k]=o.set[i].v;o.set=set;return o;});}
   var MX_AFF={income:1,down:1,debts:1,payMax:1};
   function mxApply(res,t){var ch=res||{},set=ch.set||{},clear=ch.clear||[],avoid=ch.avoid||[],keys=[],k,i;
@@ -1800,7 +1801,7 @@ return null;}
   var _detectIntent5=detectIntent;detectIntent=function(t,chips){if(mxIntent&&MX_KINDS[mxIntent]&&mxIntent!=='correction'){var k=mxIntent;mxIntent=null;return k;}if(isNarrative(t))return 'narrative';if(/便宜(点|一点|些|一些)|实惠(点|一点)|再便宜/.test(t))return 'listing';if(/房源|房子|找房|看房|几套|出房|推荐.{0,4}房/.test(t)&&!/社区|商圈|学校|学区|城市|生活圈/.test(t)&&(profile.budget||profile.htype||profile.beds))return 'listing';if(/车位|车库|养狗|养猫|宠物|年内|新一点|新一些|月费|管理费|物业费|院子|后院|电梯|地下室|朝南|海景|山景/.test(t)&&!/社区|商圈|学校|学区|城市|生活圈|通勤|上班/.test(t))return hasRegion(profile)?'listing':'listing';return _detectIntent5(t,chips);};
   var _softScore5=softScore;softScore=function(p,l){var r=_softScore5(p,l);if(/高性价比/.test(p.priority||'')){var d=nbData(l.nb,l.city),med=d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9);if(l.price<med){var pct=Math.round((med-l.price)/med*100);r.s+=1.5;r.hits.unshift('低于同类中位 '+pct+'%');}}return r;};
   var INTENT_CN={listing:'找房源',nb:'选社区',zone:'选生活圈',city:'选城市',school:'选学校',district:'选商圈',afford:'算钱',stress:'压力测试',market:'行情数据',qa:'城市问答',compare:'比较',knowledge:'流程规则',timing:'时机判断',narrative:'自我叙述',browse:'随便看看',correction:'纠错修改',ref:'指上一轮卡片',more:'换一批',daily:'每日推荐',ack:'应答',who:'问我是谁',agentq:'问是否中介',advice:'要投资建议',share:'分享',offtopic:'无关请求',closing:'结束'};
-  var _condChips5=condChips;condChips=function(kind,pending,t){if(NOEXTRACT[kind]||kind==='market'||kind==='stress')return [];var out=_condChips5(kind,pending,t);if(t&&mxIntentLast&&!t.mxShown){t.mxShown=true;t.mxIntent=mxIntentLast;}if(t&&t.mxIntent)out.unshift({t:'模型判意图：'+(INTENT_CN[t.mxIntent]||t.mxIntent),cls:'soft'});return out;};
+  var _condChips5=condChips;condChips=function(kind,pending,t){if(NOEXTRACT[kind]||kind==='market'||kind==='stress')return [];var out=_condChips5(kind,pending,t);if(t&&mxIntentLast&&!t.mxShown){t.mxShown=true;t.mxIntent=mxIntentLast;}if(t&&t.mxIntent)/* 写这一轮实际在执行的意图（t.kind）：回答追问、延续上一个任务时，沿用的是原来那个意图，不是模型对这句话单独的判断 */out.unshift({t:'模型判意图：'+(INTENT_CN[t.kind]||INTENT_CN[t.mxIntent]||t.mxIntent),cls:'soft'});return out;};
 
   /* ---------- 输入分发：先判无抽取意图 → 修正句重出上一结果 → 原流程 ---------- */
   var _renderTurn5=renderTurn;renderTurn=function(t){if(t.silent)return;_renderTurn5(t);if(pendingUndo&&!pendingUndo.done){var und=t.el&&t.el.querySelector('.v3und');if(und){var entry=pendingUndo;pendingUndo=null;entry.done=true;/* 这句话只换了「本次看」的范围、没有往档案里写东西时，不出按钮 */if(entry.chips.length&&entry.chips.every(function(c){return /^本次看：/.test(c.t||'');}))return;var b=document.createElement('button');b.className='v3mini ghost';b.setAttribute('data-undo','1');b.textContent='不记入档案';b.title='这句话里的条件只用于这一次的结果，不写进我的档案';/* 按钮单独占一行：左边写「偏好已更新至档案」，右边是按钮 */var brk=document.createElement('span');brk.className='tag brk';und.appendChild(brk);var sv=document.createElement('span');sv.className='v4saved';sv.innerHTML='<i class="ti ti-circle-check"></i>偏好已更新至档案';und.appendChild(sv);und.appendChild(b);b.onclick=function(){keepOnce(entry,und,b);};b._undo=function(){undoAction(entry,und);};}}};
@@ -1841,6 +1842,9 @@ return null;}
        改了什么看「AI 理解为」：改动的条件高亮，被去掉的条件回显成「X：已去掉」，「撤销」在块末尾 */
     if(isCorr&&corr.type&&lastTurn&&lastTurn.kind&&!NEW_KINDS[lastTurn.kind]&&lastTurn.kind!=='need'&&!askConfirmTurn){var ch=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};})),gone=corrGone(before,ch);ch=ch.concat(gone);corr.type='';
       /* 这句什么都没改（比如要改成的值本来就是这个）：不重出一模一样的结果，说一句就行 */
+      var crit12=(typeof critOwn12!=='undefined'&&critOwn12)||0;
+      /* 只带了评判标准（「再安静一点的」）、档案字段没变：没有东西要写档案，但要按新的评判标准把上一组重出一遍 */
+      if(!ch.length&&JSON.stringify(snap(profile))===JSON.stringify(before)&&crit12){var lt0=lastTurn;lt0.newKeys=[];lt0.gone=null;lt0.noNew=false;rerunNew(lt0);return;}
       if(!ch.length&&JSON.stringify(snap(profile))===JSON.stringify(before)){typing(function(){addAI('这句没有改动档案里的条件，上面的结果仍然有效。');});return;}
       if(!ch.length){gone=[{t:'档案已更新',show:1}];ch=gone.slice();}
       var lt=lastTurn;lt.newKeys=lastNewKeys.concat(gone.filter(function(g){return g.rk;}).map(function(g){return g.rk;}));lt.gone=gone.filter(function(g){return g.show;}).map(function(g){return g.t;});lt.noNew=false;rerunNew(lt,{before:before,chips:ch});return;}
@@ -2980,6 +2984,64 @@ return null;}
   var _openCommunity12=openCommunity;openCommunity=function(name,cityHint){_openCommunity12(name,cityHint);if(!MLSD[name])return;
     try{var box=document.querySelector('#jhp .view-detail .dscroll'),secs=box?box.querySelectorAll('.sec'):[],i,host=null;for(i=0;i<secs.length;i++)if(secs[i].textContent.trim()==='社区特色'){host=secs[i].parentNode;break;}
       if(!host)return;var tmp=document.createElement('div');tmp.innerHTML=section('社区特色',chips(mlsTags(name)))+riskcard(mlsRiskHTML(name));[].slice.call(tmp.children).forEach(function(nd){host.parentNode.insertBefore(nd,host);});host.parentNode.removeChild(host);}catch(e){}};
+
+  /* ===================== 这句话和前面的任务是什么关系（Mike 2026-11-27 定的方案）=====================
+     原来每句话都从零重判意图：回答追问的「房型 Townhouse，预算 80–120万」被判成找房源；
+     刚出完社区卡补一句「不要太偏远的」也被判成找房源，于是悄悄从选社区变成了找房源。
+     现在统一由模型判断关系，按顺序取第一个成立的：
+       answer   = 在回答上一轮刚提的追问            → 用追问的意图
+       continue = 在延续上一个意图（补充 / 修改条件、评价结果，或补上未完成任务还缺的内容）→ 用被延续任务的意图
+       new      = 独立的新任务                      → 用模型判出的新意图
+     追问只挂一轮：紧接着的那一句没有回答，追问块就锁定。但停在追问上的任务不丢，之后仍可被 continue 接回，
+     直到有新的推荐类任务出了结果把它顶掉。
+     没开模型、或模型没返回关系时，走原来的规则（追问挂着、这句话填上了被问的项 = 回答追问）。 */
+  var REC12={listing:1,nb:1,zone:1,city:1,school:1,district:1};
+  var sendSeq=0,liveAsk=null,curLive=null,unfin=null,lastRes=null,mxRel=null,critOwn12=0;
+  function uniq12(a){var o=[];a.forEach(function(x){if(x&&o.indexOf(x)<0)o.push(x);});return o;}
+  /* 每次重画一个回合后记一下状态：它是停在追问上，还是出了结果 */
+  function trackTurn(t){if(!t||t.silent||!t.kind)return;if(t._seq==null)t._seq=sendSeq;
+    if(t.asks&&t.asks.length){t.askedLabels=t.asks.map(function(a){return a.label;});if(!liveAsk||liveAsk.turn!==t)liveAsk={turn:t,seq:t._seq};if(REC12[t.kind])unfin=t;return;}
+    if(liveAsk&&liveAsk.turn===t&&t._seq===sendSeq)liveAsk=null;/* 同一轮里点了「跳过」，追问已经了结 */
+    if(t.rkPending||t.llm==='pending')return;/* 结果还在等模型，先不算 */
+    if(t.askFirst||!(t.html||t.lead))return;
+    if(NEW_KINDS[t.kind]||t.kind==='need'){lastRes=null;return;}/* 知识卡、闲聊之后没有可延续的结果组（PRD 6.6） */
+    lastRes=t;if(REC12[t.kind])unfin=null;}
+  var _renderTurn12=renderTurn;renderTurn=function(t){_renderTurn12(t);try{trackTurn(t);}catch(e){}};
+  function expireAsk(a){if(!a)return;try{if(a.el&&a.asks)lockAsk(a);}catch(e){}if(pendingAsk&&pendingAsk.turn===a)pendingAsk=null;if(liveAsk&&liveAsk.turn===a)liveAsk=null;}
+  /* 每句话开始时：上一轮刚出的追问还算挂着；更早的一律过期锁定 */
+  var _v4Send12=v4Send;v4Send=function(t){sendSeq++;curLive=null;if(liveAsk){if(liveAsk.seq===sendSeq-1)curLive=liveAsk.turn;else expireAsk(liveAsk.turn);}mxRel=null;critOwn12=0;_v4Send12(t);
+    /* 没开模型时这句话是同步处理完的：到这里追问还没被回答，就过期锁定（闲聊这类不经过 v4After 的句子也算一轮） */
+    if((typeof mxOn!=='function'||!mxOn())&&curLive&&curLive.asks)expireAsk(curLive);};
+  /* 交给模型的会话状态 */
+  function mxState(){var ask='无',un='无',last='无';
+    try{if(curLive)ask=JSON.stringify({intent:curLive.kind,'意图':INTENT_CN[curLive.kind]||curLive.kind,'在问':curLive.askedLabels||[]});}catch(e){}
+    try{if(unfin&&unfin!==curLive)un=JSON.stringify({intent:unfin.kind,'意图':INTENT_CN[unfin.kind]||unfin.kind,'还缺':unfin.askedLabels||[]});}catch(e){}
+    try{if(lastRes){var lt=lastRes,cards=[];if(lt.pick&&lt.pick.names)cards=lt.pick.names.slice(0,6);else if(lt.batch&&lt.batch.items)cards=lt.batch.items.slice(0,5).map(function(it){return '$'+it.l.price+'万 '+it.l.beds+'床 '+it.l.nb;});
+      last=JSON.stringify({intent:lt.kind,'类型':INTENT_CN[lt.kind]||lt.kind,'卡片':cards.map(function(n,i){return (i+1)+' '+n;})});}}catch(e){}
+    return '\n挂起的追问：'+ask+'\n未完成的任务：'+un+'\n上一结果组：'+last;}
+  if(typeof MX_SCHEMA!=='undefined'){MX_SCHEMA.properties.relation={type:'string',enum:['answer','continue','new'],description:'这句话和前面任务的关系'};MX_SCHEMA.required.push('relation');}
+  var _mxSystem12=mxSystem;mxSystem=function(){return _mxSystem12()
+    +'\n21. 输入里还有三项会话状态，没有时写「无」：「挂起的追问」= 上一轮刚向用户提的追问（哪个意图、在问哪几项），只对紧接着的这一句有效；「未完成的任务」= 更早停在追问上、还没出结果的任务（还缺哪几项）；「上一结果组」= 最近给用户看的那组结果（类型和卡片）。三项里的 intent 就是意图的取值。'
+    +'\n22. relation 写这句话和前面任务的关系，按顺序取第一个成立的：answer = 「挂起的追问」不是「无」，且这句话是在回答它（给了被问的项，或只补充别的条件，没有提出新的要求）；continue = 这句话是在补充、收紧或修改条件，或在评价上一组结果（「这种太远了」「再安静一点的」），或给出了「未完成的任务」还缺的内容，没有明确要换一种结果；new = 以上都不是，是一个独立的新要求（包括中途问别的问题）。拿不准时取靠前的那个。三项状态都是「无」时只能是 new。'
+    +'\n23. relation 是 answer 或 continue 时，intent 填被延续的那个任务的 intent：answer 填「挂起的追问」的；continue 填「上一结果组」或「未完成的任务」里这句话接的那一个。不要因为句子里只有房型、预算就填 listing。例外：只对着上一组里某一张卡说的（第二个不错 / 这套太旧了 / 帮我约看第一套）intent 仍填 ref，换一批填 more，撤销 / 重新来填 correction。relation 是 new 时 intent 按规则 13 判；规则 13 末尾的「拿不准时 → listing」也只在 new 时适用。';};
+  var _mxApply12=mxApply;mxApply=function(res,t){var r=res&&res.relation;mxRel=(r==='answer'||r==='continue'||r==='new')?r:null;critOwn12=((res&&res.criteria)||[]).filter(Boolean).length;_mxApply12(res,t);};
+  /* 把之前那句带的评判标准（如「亲近自然」）和这一句的合在一起，带给接下来新开的回合 */
+  function mergeCrit(prev){if(!mxExtra||!prev)return;mxExtra.criteria=uniq12((mxExtra.criteria||[]).concat(prev.criteria||critByText[prev.text]||[])).slice(0,6);mxExtra.ts=Date.now();}
+  /* 接着做一个停在追问上的任务：按更新后的档案重新检查最低条件，齐了出结果，还缺就只问还缺的 */
+  function resumeTask(U,t,before){var chips=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(chips.length)showUndo(before,chips);
+    expireAsk(U);if(curLive&&curLive!==U)expireAsk(curLive);mergeCrit(U);U.newKeys=chips.filter(function(c){return c.k;}).map(function(c){return c.k;});U.noNew=!chips.length;mxIntent=null;continueTurn(U);}
+  var _v4After12=v4After;v4After=function(t,before){var la=curLive,rel=mxRel,mi=mxIntent,tt=(''+t).trim();mxRel=null;
+    var special=/^\s*(刚才那条|上一条|那条|刚才的)?\s*(撤销|撤回|收回)/.test(tt)||/都不对|重新来|重来|全部清掉|从头来/.test(tt);
+    /* 没开模型、模型没给关系、撤销 / 重来、指某张卡、换一批：走原来的流程；只把「追问只挂一轮」补上 */
+    if(typeof mxOn!=='function'||!mxOn()||!rel||special||mi==='correction'||mi==='ref'||mi==='more'){_v4After12(t,before);if(la&&la.asks)expireAsk(la);return;}
+    askConfirmTurn=null;/* 点「确定」拼出来的句子也一样看模型判的关系，不另走一条路 */
+    if(rel==='answer'&&!la)rel='continue';
+    if(rel==='answer'){resumeTask(la,t,before);return;}
+    if(rel==='continue'){var U=unfin,R=lastRes;
+      if(U&&(mi===U.kind||!R)){resumeTask(U,t,before);return;}
+      if(R){expireAsk(la);pendingAsk=null;mergeCrit(R);lastTurn=R;mxIntent='correction';_v4After12(t,before);return;}}
+    /* 新任务（或者没有可延续的东西）：追问到此过期，按模型判出的新意图走 */
+    expireAsk(la);pendingAsk=null;mxIntent=mi;_v4After12(t,before);};
 
 })();
 </script>
