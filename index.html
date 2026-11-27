@@ -256,6 +256,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2203,17 +2204,15 @@ return null;}
      2) 涉及推荐：模型只在候选池里挑卡并写理由，不编名字
      3) 追问：模型在追问字典里选要问的项，规则的最低条件保底，一轮一个块
      没有 key 时全部不生效，保持模板行为 */
-  var ASKABLE=['budget','htype','beds','kids','dest','time','mode','mustHave'],mxExtra=null,critByText={};
+  var mxExtra=null,critByText={};
   MX_KINDS.open=1;NEW_KINDS.open=1;NOEXTRACT.open=1;INTENT_CN.open='地产问答';
   if(typeof MX_SCHEMA!=='undefined'){MX_SCHEMA.properties.intent.enum.push('open');
     MX_SCHEMA.properties.criteria={type:'array',items:{type:'string'},description:'这句话里用户自己提出、但写不进任何档案字段的评判标准或关注点'};
-    MX_SCHEMA.properties.ask={type:'array',items:{type:'string',enum:ASKABLE},description:'给出有用结果之前必须先问用户的项，最多 2 项，默认空'};
-    MX_SCHEMA.required.push('criteria');MX_SCHEMA.required.push('ask');}
+    MX_SCHEMA.required.push('criteria');}
   var _mxSystem7=mxSystem;mxSystem=function(){return _mxSystem7()+'\n15. criteria：这句话里用户自己提出的、无法写进任何档案字段的评判标准或关注点，逐条列成短语（如「热爱社交」「年轻人多」「华人配套」「夜生活」「适合养老」「遛狗方便」）。能写进字段的（预算、房型、学区、自然环境、通勤、调性等）不要重复列；没有就给空数组。'
-    +'\n16. intent 另有一类 open：与买房 / 找房 / 区域 / 房源 / 市场 / 居住有关，但不属于上面任何一类的问题（如「住公寓会不会很吵」「木结构房子在这边耐不耐用」「这边冬天取暖费高吗」）。属于税费、流程、材料的仍是 knowledge；与找房无关的仍是 offtopic。'
-    +'\n17. ask：为了给出有用的结果，必须先问用户的项，只能从 '+JSON.stringify(ASKABLE)+' 里选（budget 预算 / htype 房型 / beds 卧室数 / kids 孩子学段 / dest 通勤目的地 / time 可接受通勤 / mode 通勤方式 / mustHave 商圈必备店铺），最多 2 项。用户这句话或当前档案里已经有的不要问；能不问就不问，默认空数组；zone / city / market / knowledge / timing 以及闲聊类意图一律空数组。';};
-  var _mxApply7=mxApply;mxApply=function(res,t){mxExtra={criteria:((res&&res.criteria)||[]).filter(Boolean).slice(0,6),ask:((res&&res.ask)||[]).filter(function(f){return ASKABLE.indexOf(f)>=0;}).slice(0,2),ts:Date.now()};if(t&&mxExtra.criteria.length)critByText[t]=mxExtra.criteria;_mxApply7(res,t);};
-  var _newTurn7=newTurn;newTurn=function(){var t=_newTurn7();if(mxExtra&&Date.now()-mxExtra.ts<5000){t.criteria=mxExtra.criteria;t.mAsks=mxExtra.ask;}mxExtra=null;return t;};
+    +'\n16. intent 另有一类 open：与买房 / 找房 / 区域 / 房源 / 市场 / 居住有关，但不属于上面任何一类的问题（如「住公寓会不会很吵」「木结构房子在这边耐不耐用」「这边冬天取暖费高吗」）。属于税费、流程、材料的仍是 knowledge；与找房无关的仍是 offtopic。';};
+  var _mxApply7=mxApply;mxApply=function(res,t){mxExtra={criteria:((res&&res.criteria)||[]).filter(Boolean).slice(0,6),ts:Date.now()};if(t&&mxExtra.criteria.length)critByText[t]=mxExtra.criteria;_mxApply7(res,t);};
+  var _newTurn7=newTurn;newTurn=function(){var t=_newTurn7();if(mxExtra&&Date.now()-mxExtra.ts<5000){t.criteria=mxExtra.criteria;}mxExtra=null;return t;};
 
   /* ---------- 喂给模型的数据：只取库里有的字段 ---------- */
   function axPoi(city){var sum={},n=0;allDistricts().forEach(function(d){if(d.city!==city)return;n++;var p=distPOI(d.name,d.city,d.line),k;for(k in p)sum[k]=(sum[k]||0)+p[k];});return n?{商圈数:n,店铺合计:sum}:null;}
@@ -2274,18 +2273,15 @@ return null;}
     axCall(axPayload(t,mode)).then(function(res){t.llm='done';t.llmRes=res;t.lead=keep.lead;t.html=keep.html;t.layers=keep.layers;t.pick=keep.pick;axApply(t);renderTurn(t);if(t.layers&&mapShown())setSheet('half');})
       .catch(function(e){t.llm='fail';t.lead=keep.lead;t.html=keep.html;t.layers=keep.layers;t.pick=keep.pick;if(mode==='open'&&!t.lead)t.lead='这个问题我暂时答不了。';renderTurn(t);addAI('<span class="muted" style="font-size:11px">模型回答失败（'+esc((e&&e.message)||String(e))+'），先按通用口径给出。</span>');});}
 
-  /* ---------- 追问：只按 PRD 4.3 的最低条件来，一轮一个块 ---------- */
-  var NO_MODEL_ASK={zone:1,city:1,market:1,knowledge:1,timing:1,ack:1,who:1,agentq:1,advice:1,share:1,offtopic:1,browse:1,closing:1,more:1,ref:1,daily:1,narrative:1};
-  /* 各意图缺哪几项，由 buildTurn 里的 firstMissing 按 4.3 的最低条件算出（t.asks）。
-     模型建议的追问项（t.mAsks）不再并进来：最低条件齐了就直接出结果，不为模型想多问的一项压住结果。
-     例：选社区只要房型和预算，档案里都有时不应该先问「在哪上班」 */
-  function axMergeAsks(t){return;}
+  /* ---------- 追问：只按 PRD 4.3 的最低条件来 ----------
+     各意图缺哪几项，由 buildTurn 里的 firstMissing 按 4.3 的最低条件算出（t.asks）；最低条件齐了就直接出结果。
+     抽取模型不输出「建议追问的项」，追问不由模型决定。 */
 
   var _buildTurn7=buildTurn;buildTurn=function(t){
     if(!(t.criteria&&t.criteria.length)&&t.text&&critByText[t.text])t.criteria=critByText[t.text];
     if(t.kind==='open'){t.html='';t.lead='';t.layers=null;t.relaxOpts=[];t.extra=(t.extra||[]).filter(function(x){return x.keep;});t.asks=null;t.pick=null;if(!mxOn()){t.lead='这个问题我暂时答不了。';return;}}
     else _buildTurn7(t);
-    axMergeAsks(t);if(t.asks&&t.asks.length)return;
+    if(t.asks&&t.asks.length)return;
     if(t.llm==='done'){axApply(t);return;}
     if(t.llm==='pending'||t.llm==='fail')return;
     var mode=axMode(t);if(mode)axStart(t,mode);};
@@ -2587,7 +2583,7 @@ return null;}
   function pfUndecided(t){if(!/没想好|没想清楚|没决定|没确定|没定|不确定|不知道|不清楚|拿不准|拿不定|纠结|犹豫|没主意|没头绪/.test(t)||!/哪|什么|怎么选|如何选/.test(t))return '';
     if(/商圈/.test(t))return 'district';if(/学校|学区/.test(t))return 'school';if(/社区|小区/.test(t))return 'nb';if(/城市|哪个市/.test(t))return 'city';if(/生活圈|片区|区域|哪个区|哪一区|什么区|住哪/.test(t))return 'zone';return '';}
   var _detectIntent10=detectIntent;detectIntent=function(t,chips){var u=pfUndecided(t||'');if(u){mxIntent=null;return u;}return _detectIntent10(t,chips);};
-  var _mxSystem10=mxSystem;mxSystem=function(){return _mxSystem10()+'\n18. 用户表示还没想好 / 不确定 / 纠结该选哪个城市、生活圈（区域）、社区、学校、商圈时，是在请你推荐对应的层级：intent 分别给 city / zone / nb / school / district，不算 narrative。';};
+  var _mxSystem10=mxSystem;mxSystem=function(){return _mxSystem10()+'\n17. 用户表示还没想好 / 不确定 / 纠结该选哪个城市、生活圈（区域）、社区、学校、商圈时，是在请你推荐对应的层级：intent 分别给 city / zone / nb / school / district，不算 narrative。';};
   /* ---------- 这句话没抽到任何新条件（只判出了意图）时，不出「AI 理解为」 ---------- */
   var _condChips10=condChips;condChips=function(kind,pending,t){var out=_condChips10(kind,pending,t);if(!out.length)return out;
     var SK={firstTime:1,timeline:1,preApproved:1,downPay:1},add=((t&&t.newKeys)||[]).filter(function(k){return SK[k]&&profile[k];}).map(function(k){return {t:rkLabel(k)+'：'+profile[k],cls:'new',k:k};});
@@ -2803,7 +2799,7 @@ return null;}
       scSet('schoolProg',pg.join('、'));});}
   var _extract11=extract;extract=function(t){var b={schoolPref:profile.schoolPref||''};_extract11(t);if(t&&typeof t==='string'){try{scRules(t,b);}catch(e){}}};
   var _mxApply11=mxApply;mxApply=function(res,t){_mxApply11(res,t);scNorm();};
-  var _mxSystem11=mxSystem;mxSystem=function(){return _mxSystem11()+'\n19. 学校：说了具体分数（「8 分以上的学校」）写 schoolMin「8分以上」；只说「好学校 / 名校」不写 schoolMin 也不写 schoolPref，把 学区 写进 priority。schoolPref 只写学校类型：公校 / 私校 / 教会 / 男校 / 女校 / 混校，可多值，用「、」分隔。IB、AP、法语沉浸、中文双语、天才班、蒙特梭利、艺术特色、体育特色、STEM 特色写 schoolProg，可多值。';};
+  var _mxSystem11=mxSystem;mxSystem=function(){return _mxSystem11()+'\n18. 学校：说了具体分数（「8 分以上的学校」）写 schoolMin「8分以上」；只说「好学校 / 名校」不写 schoolMin 也不写 schoolPref，把 学区 写进 priority。schoolPref 只写学校类型：公校 / 私校 / 教会 / 男校 / 女校 / 混校，可多值，用「、」分隔。IB、AP、法语沉浸、中文双语、天才班、蒙特梭利、艺术特色、体育特色、STEM 特色写 schoolProg，可多值。';};
 
   /* ---------- 面积：下限、上限或区间（档案里的键仍叫 sqftMin） ----------
      「1500 尺以上」→ ≥1500 sqft；「2000 尺以内 / 不超过 2000 尺」→ ≤2000 sqft；「1200 到 1800 尺」→ 1200–1800 sqft；
@@ -2818,7 +2814,7 @@ return null;}
   function areaNorm(){if(profile.sqftMin)profile.sqftMin=areaFmt(areaRange(profile.sqftMin))||profile.sqftMin;}
   var _extract11a=extract;extract=function(t){_extract11a(t);if(t&&typeof t==='string'){var a=areaRule(t);if(a)profile.sqftMin=a;}areaNorm();};
   var _mxApply11a=mxApply;mxApply=function(res,t){_mxApply11a(res,t);areaNorm();};
-  var _mxSystem11a=mxSystem;mxSystem=function(){return _mxSystem11a()+'\n20. 面积（sqftMin）按用户说的方向写：下限写「≥1500 sqft」，上限写「≤2000 sqft」，区间写「1200–1800 sqft」；只说一个数、没说以上还是以内时按下限。「超过 2000 尺的不要」写 ≤2000 sqft，不进 avoid。';};
+  var _mxSystem11a=mxSystem;mxSystem=function(){return _mxSystem11a()+'\n19. 面积（sqftMin）按用户说的方向写：下限写「≥1500 sqft」，上限写「≤2000 sqft」，区间写「1200–1800 sqft」；只说一个数、没说以上还是以内时按下限。「超过 2000 尺的不要」写 ≤2000 sqft，不进 avoid。';};
   if(typeof MX_FREE!=='undefined')MX_FREE.sqftMin=['≥1500 sqft','≤2000 sqft','1200–1800 sqft'];
 
   /* ---------- 房型加两类：1/2 Duplex、多户住宅（顺序和匹配在 p1 的 TYPE_CHAIN / ltype / typeOK） ----------
@@ -2829,7 +2825,7 @@ return null;}
     if(/(不要|不考虑|不看|别推|排除)[^，,。；;]{0,8}(双拼|半独立|duplex|多户|multiplex|triplex|fourplex)/i.test(s))return '';
     HT_OLD.forEach(function(x){if(x[0].test(rest))hit.push(x[1]);});return TYPE_CHAIN.filter(function(x){return hit.indexOf(x)>=0;}).join('、');}
   var _extract11h=extract;extract=function(t){_extract11h(t);if(t&&typeof t==='string'){var h=htRule(t);if(h)profile.htype=h;}};
-  var _mxSystem11h=mxSystem;mxSystem=function(){return _mxSystem11h()+'\n21. 房型取值：Townhouse / Condo / 独立屋 / 1/2 Duplex / 多户住宅 / 楼花。双拼、半独立、duplex、semi-detached 写「1/2 Duplex」；多户、multiplex、triplex、fourplex 写「多户住宅」；说了多个房型用「、」分隔。';};
+  var _mxSystem11h=mxSystem;mxSystem=function(){return _mxSystem11h()+'\n20. 房型取值：Townhouse / Condo / 独立屋 / 1/2 Duplex / 多户住宅 / 楼花。双拼、半独立、duplex、semi-detached 写「1/2 Duplex」；多户、multiplex、triplex、fourplex 写「多户住宅」；说了多个房型用「、」分隔。';};
   /* 学校详情页的模板文案还认旧取值，调用时临时换回去 */
   var _fitForSchool11=fitForSchool;fitForSchool=function(name,inf){var p=profile,sv=p.schoolPref,pg=p.schoolProg||'';p.schoolPref=/私校|教会/.test(sv||'')?'私立':(/IB/.test(pg)?'IB 课程':(/法语/.test(pg)?'French Immersion':''));try{return _fitForSchool11(name,inf);}finally{p.schoolPref=sv;}};
 
