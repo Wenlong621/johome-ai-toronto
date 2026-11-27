@@ -251,6 +251,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1186,6 +1187,8 @@ return null;}
       case '车位':if(/无车位/.test(v)&&l.parkN===0)return false;if(/Exclusive/.test(v)&&l.parkType==='Exclusive')return false;break;
       case '洪泛区':if(l.flood)return false;break;
       case '年龄限制楼':if(l.age55)return false;break;}}return true;}
+  /* 这套房是否命中了软的负向项（和卡片上「可能临街」这类提示同一个判断） */
+  function negHit(it){return (it&&it.sc&&it.sc.neg&&it.sc.neg.length)?1:0;}
   function softScore(p,l){var s=0,hits=[],neg=[];avoidList(p).forEach(function(a){if(a.hard)return;if(a.dim==='临街·噪音源'&&l.frontage){s-=3;neg.push('可能临街');}if(a.dim==='周边厌恶设施'&&l.nuisance){s-=3;neg.push('附近有'+l.nuisance);}});
     if(/安静/.test(p.vibe||'')||/安逸/.test(p.tone||'')){if(!l.frontage){s+=1;hits.push('非临街');}else s-=1;}
     if(p.view&&l.view===p.view){s+=2;hits.push(l.view);}
@@ -1200,7 +1203,10 @@ return null;}
   function runBatch(o){o=o||{};var p=o.profile||profile,pool=buildPool(),ds=gDisliked,opt=o.relax||{};
     var P1=pool.filter(function(l){return !(o.freshOnly&&!l.fresh)&&stage1(p,l,opt);}),P2=P1.filter(function(l){return stage2(p,l)&&!ds[l.id]&&!(o.exclude&&o.exclude[l.id]);});
     var strict=P2.length,P2s=P2;var lim=o.poolMax||40;if(P2s.length>lim){var br=budgetRange(p.budget),mid=br?(br[0]+br[1])/2:0;P2s=P2s.slice().sort(function(a,b){return (a.days-b.days);}).slice(0,lim);}
-    var items=rkOrder('listing',P2s.map(function(l){var sc=softScore(p,l);return {l:l,sc:sc,relax:[]};}),function(it){return ''+it.l.id;},o.cap||10,function(a,b){return a.l.days-b.l.days;},rkFactListing,(!o.profile||o.profile===profile)&&!o.freshOnly,function(it,w,prs){it.sc.hits=w.slice();it.sc.pairs=prs||null;});
+    var items=rkOrder('listing',P2s.map(function(l){var sc=softScore(p,l);return {l:l,sc:sc,relax:[]};}),function(it){return ''+it.l.id;},o.cap||10,function(a,b){return negHit(a)-negHit(b)||(a.l.days-b.l.days);},rkFactListing,(!o.profile||o.profile===profile)&&!o.freshOnly,function(it,w,prs){it.sc.hits=w.slice();it.sc.pairs=prs||null;});
+    /* 命中「尽量避开」（软的负向项）的房源一律排在没命中的后面：这条不交给模型自己把握，由代码保证。
+       模型排序和失败时的默认顺序都适用；两组内部各自保持原来的先后 */
+    items=items.filter(function(it){return !negHit(it);}).concat(items.filter(function(it){return !!negHit(it);}));
     var b={id:'B'+(++batchSeq),P1:P1.length,P2:P2.length,strict:strict,relaxed:opt.labels||[],items:items,v:p._v||1,t:new Date()};lastBatch=b;return b;}
   function countWith(p,opt,exclude){var pool=buildPool(),n=0,i;for(i=0;i<pool.length;i++){var l=pool[i];if(stage1(p,l,opt)&&stage2(p,l)&&!gDisliked[l.id]&&!(exclude&&exclude[l.id]))n++;}return n;}
   /* 放宽选项池：每项预估能多出几套，按「改动最小、增量最大」取前 2–4 个；负向硬排除永不出现 */
