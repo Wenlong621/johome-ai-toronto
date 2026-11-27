@@ -258,6 +258,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1167,7 +1168,7 @@ return null;}
   function areaRange(v){if(!v)return null;var s=(''+v).replace(/,/g,''),m=s.match(/(\d{3,5})\s*[–\-~到至]\s*(\d{3,5})/);if(m)return [Math.min(+m[1],+m[2]),Math.max(+m[1],+m[2])];var n=s.match(/(\d{3,5})/);if(!n)return null;if(/[<＜≤]|以内|以下|不超过|最多/.test(s))return [0,+n[1]];return [+n[1],99999];}
   function areaFmt(r){if(!r)return '';return r[0]&&r[1]<99999?(r[0]+'–'+r[1]+' sqft'):r[0]?('≥'+r[0]+' sqft'):('≤'+r[1]+' sqft');}
   function typeOK(l,ht){if(!ht||/楼花|都可以|不限/.test(ht))return true;var ok=false,lt=ltype(l);ht.split(/[、\/ ]+/).forEach(function(h){if(/双拼|半独立|semi|duplex/i.test(h)){if(lt==='1/2 Duplex')ok=true;return;}if(/多户|multiplex|triplex|fourplex/i.test(h)){if(lt==='多户住宅')ok=true;return;}if(/condo|公寓/i.test(h)&&lt==='Condo')ok=true;if(/townhouse|联排/i.test(h)&&lt==='Townhouse')ok=true;if(/独立屋|detached/i.test(h)&&lt==='独立屋')ok=true;});return ok;}
-  function regionSet(p,level){if(level==='none')return null;var s={},any=false;(p.tNb||'').split('、').filter(Boolean).forEach(function(n){if(level==='city'){var c=nbCity(n);if(c){s['city:'+c]=1;any=true;}}else{s['nb:'+n]=1;any=true;}});(p.tZone||'').split('、').filter(Boolean).forEach(function(z){if(typeof ZONES!=='undefined'&&ZONES[z]){if(level==='city')ZONES[z].cities.forEach(function(c){s['city:'+c]=1;any=true;});else ZONES[z].nbs.forEach(function(q){s['nb:'+q[0]]=1;any=true;});}});(p.tCity||'').split('、').filter(Boolean).forEach(function(c){s['city:'+c]=1;any=true;});
+  function regionSet(p,level){if(level==='none')return null;var s={},any=false;(p.tNb||'').split('、').filter(Boolean).forEach(function(n){if(level==='city'){var c=nbCity(n);if(c){s['city:'+c]=1;any=true;}}else{s['nb:'+n]=1;any=true;}});(p.tZone||'').split('、').filter(Boolean).forEach(function(z){if(typeof ZONES!=='undefined'&&ZONES[z]){if(level==='city')ZONES[z].cities.forEach(function(c){s['city:'+c]=1;any=true;});else ZONES[z].nbs.forEach(function(q){s['nb:'+q[0]]=1;any=true;});}});(p.tCity||'').split('、').filter(Boolean).forEach(function(c){/* 城市连同它名下的分区一起算（cityFamily，p12） */cityFamily(c).forEach(function(c2){s['city:'+c2]=1;});any=true;});
     (p.district||'').split('、').filter(Boolean).forEach(function(d){var c=distCity(d);var nbs=nbsNearDistrict(d,c);nbs.forEach(function(n){s['nb:'+n]=1;any=true;});});
     if(p.school){var sc=schoolNbs(p.school);sc.forEach(function(n){s['nb:'+n]=1;any=true;});}
     if(p.dest&&!any){isoNbs(p).forEach(function(n){s['nb:'+n[0]]=1;any=true;});}
@@ -1180,7 +1181,7 @@ return null;}
   function stage1(p,l,o){o=o||{};var br=budgetRange(p.budget,o.bw||1);if(o.budgetMax)br=[0,o.budgetMax];if(br&&(l.price<br[0]||l.price>br[1]))return false;if(!typeOK(l,o.htype||p.htype))return false;var bd=parseInt(((p.beds||'').match(/\d/)||[0])[0],10)-(o.bedsMinus||0);if(bd>0&&l.beds<bd)return false;var rs=o.regionSet||regionSet(p,o.region);if(rs&&!rs['nb:'+l.nb]&&!rs['city:'+l.city])return false;if(o.loose)return true;
     var ba=parseInt(((p.baths||'').match(/\d/)||[0])[0],10);if(ba&&l.baths<ba)return false;var ar=areaRange(p.sqftMin);if(ar&&(l.sqft<ar[0]||l.sqft>ar[1]))return false;if(!o.noPark){if(/2/.test(p.parking||'')&&l.parkN<2)return false;if(/1/.test(p.parking||'')&&l.parkN<1)return false;}if(p.pet&&l.pets==='限制')return false;if(/电梯/.test(p.features||'')&&l.type==='Condo'&&!l.elevator)return false;if(/地下室/.test(p.features||'')&&!l.basement)return false;if(/后院/.test(p.features||'')&&!l.yard)return false;if(/全新|楼花/.test(p.age||'')&&l.year<2023)return false;if(/10 年内/.test(p.age||'')&&l.year<2016)return false;if(p.feeMax&&l.fee>p.feeMax)return false;if(p.nearTransit&&l.rail>1200)return false;return true;}
   function stage2(p,l){var av=avoidList(p),i;for(i=0;i<av.length;i++){var a=av[i];if(!a.hard)continue;var v=a.value;switch(a.dim){
-      case '排除区域':if(l.nb===v||l.city===v||(typeof ZONES!=='undefined'&&ZONES[v]&&ZONES[v].nbs.some(function(q){return q[0]===l.nb;})))return false;break;
+      case '排除区域':if(l.nb===v||cityCovers(v,l.city)||(typeof ZONES!=='undefined'&&ZONES[v]&&ZONES[v].nbs.some(function(q){return q[0]===l.nb;})))return false;break;
       case '楼层布局':if(/3/.test(v)&&l.levels===3)return false;break;
       case '房型排除':var lt2=ltype(l);if((v==='公寓'&&lt2==='Condo')||(v==='联排'&&lt2==='Townhouse')||(v==='独立屋'&&lt2==='独立屋')||(v===lt2&&(v==='1/2 Duplex'||v==='多户住宅')))return false;break;
       case '产权形态':if(l.lease)return false;break;
@@ -2294,7 +2295,7 @@ return null;}
   var turnKeys=[],turnCrit=[],turnWhy={},whyNoFill=false,inTurn=false;
   function TB(){var i;for(i=0;i<arguments.length;i++)if(turnKeys.indexOf(arguments[i])>=0)return 3;return 1;}
   function turnOnly(p){var q={avoid:[],avoidRaw:[]};turnKeys.forEach(function(k){if(p[k])q[k]=p[k];});return q;}
-  function regExcluded(name){var av=avoidList(profile),i;for(i=0;i<av.length;i++){var a=av[i];if(a.dim!=='排除区域')continue;if(a.value===name)return true;if(typeof ZONES!=='undefined'&&ZONES[name]&&ZONES[name].prim===a.value)return true;}return false;}
+  function regExcluded(name){var av=avoidList(profile),i;for(i=0;i<av.length;i++){var a=av[i];if(a.dim!=='排除区域')continue;if(a.value===name||cityCovers(a.value,name))return true;if(typeof ZONES!=='undefined'&&ZONES[name]&&ZONES[name].prim===a.value)return true;}return false;}
   /* 社区层硬条件：不在「排除区域」里；有预算和房型时，该房型预算内要有在售（全都没有时不清空，交给导语说明） */
   function hardPool(rows,t){rows=rows.filter(function(r){return !regExcluded(r[0])&&!regExcluded(r._city);});var ok=rows.filter(function(r){return r._cov===null||r._cov>0;});if(ok.length){t.noSupply=false;return ok;}t.noSupply=rows.length>0;return rows;}
 
@@ -2616,7 +2617,7 @@ return null;}
   var _districtCtr11=districtCtr;districtCtr=function(city,name){return V4.nbGeo[name]||_districtCtr11(city,name);};
   var NB_ALL=null,NB_BY={},NEAR={};
   function allNbs(){if(!NB_ALL){NB_ALL=poolPairs();NB_ALL.forEach(function(pr){(NB_BY[pr[1]]=NB_BY[pr[1]]||[]).push(pr[0]);});}return NB_ALL;}
-  function cityNbs(c){allNbs();return NB_BY[c]||[];}
+  function cityNbs(c){allNbs();var out=[];cityFamily(c).forEach(function(x){(NB_BY[x]||[]).forEach(function(n){out.push(n);});});return out;}
   function regionNbs(n,useZone){if(useZone){var zz=(typeof ZONES!=='undefined')&&ZONES[n];return zz?zz.nbs.map(function(q){return q[0];}):[];}return cityNbs(n);}
   function nbsNear(d){var k=d.city+'|'+d.name;if(NEAR[k])return NEAR[k];var ctr=districtCtr(d.city,d.name),out=[];cityNbs(d.city).forEach(function(n){if(n===d.name||kmBetween(nbGeo(n,d.city),ctr)<=SP_R)out.push(n);});if(!out.length)out=nbsNearDistrict(d.name,d.city);NEAR[k]=out;return out;}
   function dOK(d,cat){var poi=d.poi||(d.poi=distPOI(d.name,d.city,d.line));return (poi[cat]||0)>=(POI_MIN[cat]||2);}
@@ -2967,7 +2968,13 @@ return null;}
   var _rowFor12=rowFor;rowFor=function(n,cityHint){var r=_rowFor12(n,cityHint),tg=mlsTags(n);if(r&&tg&&r[5]==='社区售出中位价'){r=r.slice();r[3]=tg.slice(0,2).join(' · ');}return r;};
   /* 本次看是城市时的候选：这个城市的全部社区（手写的示例社区 + 各生活圈里归在这个城市名下的 MLS 社区），不只是示例那几个。
      Burnaby 名下还有 Burnaby North / South / East 这样的分区，按前缀一并算进来 */
-  function cityAllNbs(c){var out=(cityData(c).nbs||[]).slice(),z;if(typeof ZONES!=='undefined')for(z in ZONES)((ZONES[z]&&ZONES[z].nbs)||[]).forEach(function(q){if(q[1]===c||(''+q[1]).indexOf(c+' ')===0){var r=rowFor(q[0],q[1]);if(r)out.push(r);}});return out;}
+  function cityAllNbs(c){var out=(cityData(c).nbs||[]).slice(),z;if(typeof ZONES!=='undefined')for(z in ZONES)((ZONES[z]&&ZONES[z].nbs)||[]).forEach(function(q){if(cityCovers(c,q[1])){var r=rowFor(q[0],q[1]);if(r)out.push(r);}});return out;}
+  /* 城市和它名下的分区：数据里 Burnaby 的社区分挂在 Burnaby、Burnaby North、Burnaby South、Burnaby East 四个名字下面。
+     说「Burnaby」时四个都算：找房源、算覆盖率、选社区、排除区域都用同一个判断。只在城市名之间按「城市名 + 空格」的前缀认，不拿社区名来比 */
+  var CITY_SET,CITY_FAM;
+  function citySet(){if(!CITY_SET){CITY_SET={};allNbs().forEach(function(pr){if(pr[1])CITY_SET[pr[1]]=1;});var c;for(c in CITY)CITY_SET[c]=1;}return CITY_SET;}
+  function cityCovers(c,x){return x===c||(!!c&&!!x&&!!citySet()[x]&&(''+x).indexOf(c+' ')===0);}
+  function cityFamily(c){if(!CITY_FAM)CITY_FAM={};if(!CITY_FAM[c]){var o=[c],k,cs=citySet();for(k in cs)if(k!==c&&k.indexOf(c+' ')===0)o.push(k);CITY_FAM[c]=o;}return CITY_FAM[c];}
   RK_CAP.nb=60;/* 一个城市可能有三四十个社区，全部交给模型排 */
   /* 社区详情页：「社区特色」换成真实标签，后面加一块「风险与权衡」 */
   var _openCommunity12=openCommunity;openCommunity=function(name,cityHint){_openCommunity12(name,cityHint);if(!MLSD[name])return;
