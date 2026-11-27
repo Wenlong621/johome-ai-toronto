@@ -246,6 +246,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -398,9 +399,9 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v4askcard .p{font-size:13px;font-weight:600}
 .v4askcard .s{font-size:10.5px;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v4askwrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
-.v4askrow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 10px;border-radius:10px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);font-size:12px;color:var(--color-text-primary);cursor:pointer}
-.v4askrow i{flex:none;color:#0F6E56;font-size:15px}
-.v4askrow span{flex:1;min-width:0}
+.v4sqrow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 10px;border-radius:10px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);font-size:12px;color:var(--color-text-primary);cursor:pointer}
+.v4sqrow i{flex:none;color:#0F6E56;font-size:15px}
+.v4sqrow span{flex:1;min-width:0}
 .v4focus{display:flex;align-items:center;gap:6px;padding:5px 12px;font-size:11px;color:#0F6E56;background:#E1F5EE;border-top:0.5px solid #9FE1CB;flex:none}
 .v4focus span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .v4focus [data-x]{cursor:pointer;color:var(--color-text-secondary);font-size:13px}
@@ -2852,8 +2853,8 @@ return null;}
   function askStrip(){var old=chatView.querySelector('.v4focus');if(old)old.parentNode.removeChild(old);}
   function askInChat(l){if(!l)return;askFocus=l;showChat();setSheet('full');
     var u=document.createElement('div');u.className='row me';u.innerHTML='<div class="ubub v4askcard"><div class="t">来聊聊这套房源</div><div class="c"><div class="im"><i class="ti ti-photo"></i></div><div class="bd"><div class="p">$'+l.price+'万</div><div class="s">'+l.beds+' 床 '+l.baths+' 浴 · '+ltypeCN(l)+' · '+esc(l.nb)+'</div></div></div></div>';list.appendChild(u);u.querySelector('.c').onclick=function(){openListingV3(l.id);};
-    typing(function(){var r=document.createElement('div');r.className='row v4askq';r.innerHTML='<div class="v4askwrap"><div class="bub">想了解这套房子的哪些方面？</div>'+ASK_STARTERS.map(function(x,i){return '<button class="v4askrow" data-i="'+i+'"><i class="ti '+x[0]+'"></i><span>'+x[1]+'</span><i class="ti ti-chevron-right"></i></button>';}).join('')+'</div>';list.appendChild(r);
-      Array.prototype.forEach.call(r.querySelectorAll('.v4askrow'),function(b){b.onclick=function(){askSay(l,ASK_STARTERS[+b.getAttribute('data-i')][1]);};});
+    typing(function(){var r=document.createElement('div');r.className='row v4sq';r.innerHTML='<div class="v4askwrap"><div class="bub">想了解这套房子的哪些方面？</div>'+ASK_STARTERS.map(function(x,i){return '<button class="v4sqrow" data-i="'+i+'"><i class="ti '+x[0]+'"></i><span>'+x[1]+'</span><i class="ti ti-chevron-right"></i></button>';}).join('')+'</div>';list.appendChild(r);
+      Array.prototype.forEach.call(r.querySelectorAll('.v4sqrow'),function(b){b.onclick=function(){askSay(l,ASK_STARTERS[+b.getAttribute('data-i')][1]);};});
       scroll();});
     askStrip();scroll();}
   /* 打字问的是不是这套房：点名了「这套 / 它」，或者是一句短的房源问题且不像在找新的结果 */
