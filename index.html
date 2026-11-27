@@ -245,6 +245,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2842,18 +2843,18 @@ return null;}
   var _buildTurn11m=buildTurn;buildTurn=function(t){_buildTurn11m(t);if(t.kind==='listing'&&t.batch&&t.batch.rest&&t.batch.rest.length&&t.html&&!(t.asks&&t.asks.length)){t.extra=t.extra||[];var chip={label:'换一批',icon:'ti-refresh',solo:true,fn:function(){moreBatch(t);}},wr=null;t.extra.forEach(function(x){if(x.id==='wr'+t.id)wr=x;});/* 和「把 X 加入到关注」放同一行；两个按钮互不影响，点了哪个只置灰哪个 */if(wr){wr.chips.forEach(function(c){c.solo=true;});if(!wr.chips.some(function(c){return c.label==='换一批';}))wr.chips.push(chip);}else if(!t.extra.some(function(x){return x.id==='mb'+t.id;}))t.extra.push({id:'mb'+t.id,chips:[chip]});}};
   /* ---------- 详情页的「问 AI」并进 Johome AI 主会话 ----------
      点详情页右上的图标：回到主会话，用户一侧先出一张「来聊聊这套房源」的房源卡，下面给几个买家常问的引导问题。
-     之后输入框上方标着「正在聊：这套房」；这时问的关于这套房的问题按房源资料直接回答（askAnswer），其他话仍走主流程。
-     出了新的结果卡、或点了 × 就不再盯着这套房 */
+     之后问的关于这套房的问题按房源资料直接回答（askAnswer），其他话仍走主流程；界面上不另外标「正在聊哪套」。
+     出了新的结果卡就不再盯着这套房 */
   var askFocus=null;
   var ASK_STARTERS=[['ti-chart-line','这个价格合理吗？'],['ti-calculator','我买得起吗？每月要付多少？'],['ti-checklist','它符合我的要求吗？'],['ti-alert-triangle','有哪些风险需要留意？'],['ti-school','上学和通勤方便吗？']];
   function askReply(l,q){if(/上学.*通勤|通勤.*上学|学校.*通勤|通勤.*学校/.test(q))return askAnswer(l,'对口学校')+'<br><br>'+askAnswer(l,'通勤到我公司');return askAnswer(l,q);}
   function askSay(l,q){addUser(q);var r=parseNeg(q,profile);if(r&&r.added&&r.added.length)pref();typing(function(){addAI(askReply(l,q));});}
-  function askStrip(){var bar=chatView.querySelector('.inbar'),old=chatView.querySelector('.v4focus');if(old)old.parentNode.removeChild(old);if(!askFocus||!bar)return;var l=askFocus,s=document.createElement('div');s.className='v4focus';s.innerHTML='<i class="ti ti-home"></i><span>正在聊：$'+l.price+'万 · '+esc(l.nb)+'</span><i class="ti ti-x" data-x="1"></i>';bar.parentNode.insertBefore(s,bar);s.querySelector('[data-x]').onclick=function(){askFocus=null;askStrip();};s.querySelector('span').onclick=function(){openListingV3(l.id);};}
+  function askStrip(){var old=chatView.querySelector('.v4focus');if(old)old.parentNode.removeChild(old);}
   function askInChat(l){if(!l)return;askFocus=l;showChat();setSheet('full');
     var u=document.createElement('div');u.className='row me';u.innerHTML='<div class="ubub v4askcard"><div class="t">来聊聊这套房源</div><div class="c"><div class="im"><i class="ti ti-photo"></i></div><div class="bd"><div class="p">$'+l.price+'万</div><div class="s">'+l.beds+' 床 '+l.baths+' 浴 · '+ltypeCN(l)+' · '+esc(l.nb)+'</div></div></div></div>';list.appendChild(u);u.querySelector('.c').onclick=function(){openListingV3(l.id);};
-    typing(function(){var r=document.createElement('div');r.className='row v4askq';r.innerHTML='<div class="v4askwrap"><div class="bub">想了解这套房子的哪些方面？</div>'+ASK_STARTERS.map(function(x,i){return '<button class="v4askrow" data-i="'+i+'"><i class="ti '+x[0]+'"></i><span>'+x[1]+'</span><i class="ti ti-chevron-right"></i></button>';}).join('')+'<div class="qr" style="padding-left:0;margin-top:2px"><button class="q" data-act="like"><i class="ti ti-heart"></i>感兴趣</button><button class="q" data-act="dislike" style="border-color:#E4B4AD;color:#B23B2E"><i class="ti ti-thumb-down"></i>不合适</button></div></div>';list.appendChild(r);
+    typing(function(){var r=document.createElement('div');r.className='row v4askq';r.innerHTML='<div class="v4askwrap"><div class="bub">想了解这套房子的哪些方面？</div>'+ASK_STARTERS.map(function(x,i){return '<button class="v4askrow" data-i="'+i+'"><i class="ti '+x[0]+'"></i><span>'+x[1]+'</span><i class="ti ti-chevron-right"></i></button>';}).join('')+'</div>';list.appendChild(r);
       Array.prototype.forEach.call(r.querySelectorAll('.v4askrow'),function(b){b.onclick=function(){askSay(l,ASK_STARTERS[+b.getAttribute('data-i')][1]);};});
-      r.querySelector('[data-act="like"]').onclick=function(){likeListing(l);};r.querySelector('[data-act="dislike"]').onclick=function(){dislikeReason(l);};scroll();});
+      scroll();});
     askStrip();scroll();}
   /* 打字问的是不是这套房：点名了「这套 / 它」，或者是一句短的房源问题且不像在找新的结果 */
   var ASK_REF=/这套|这个房|这房|这间|它|该房源/,ASK_TOPIC=/值不值|合理|贵不贵|贵吗|便宜吗|买得起|月供|首付够|月费|管理费|物业费|对口|学校|学区|上学|通勤|风险|要注意|有什么坑|匹配|符合我|适合我|怎么样|翻译|砍价|还价|议价|挂了多久|周边/,ASK_NEW=/推荐|帮我找|想找|看看别的|换一批|社区|生活圈|城市|哪个区|哪里|预算|万以内|万以下|改成|换成|不要|不考虑/,ASK_REFACT=/不合适|不喜欢|约看|保存|收藏|感兴趣|喜欢这/;
