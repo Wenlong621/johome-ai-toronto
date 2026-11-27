@@ -250,6 +250,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -409,9 +410,9 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v4focus span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .v4focus [data-x]{cursor:pointer;color:var(--color-text-secondary);font-size:13px}
 #jhp .chat .v4askwrap>.bub{background:none;border:0;border-radius:0;padding:0 1px;max-width:100%}
-/* 「AI 理解为」写成一句话：条件之间用逗号隔开，不用标签；「不考虑」的用红字 */
+/* 「AI 理解为」分行写：意图、范围、其余条件各一行；同一行的各项用逗号隔开，不用标签；「不考虑」的用红字 */
 .v3und .v4undtx{flex:1 1 100%;min-width:0;line-height:1.6;color:var(--color-text-secondary)}
-.v3und .v4undtx>i{margin-right:4px}
+.v3und .v4undtx i{margin-right:4px}
 .v3und .v4undlb{margin-right:2px}
 .v3und .v4uc{color:var(--color-text-primary)}
 .v3und .v4uc.neg{color:#B23B2E}
@@ -2892,7 +2893,8 @@ return null;}
      块里只写：意图、这句话新增 / 改动 / 去掉的条件、这句话新记下的「不考虑」、本次范围。
      档案里原有的条件不显示（要看去「我的档案」）；范围每次都写，哪怕这句话没改它。
      这句话没有带来任何条件时整块不出。
-     显示成一句话：条件之间用逗号隔开，不用标签样式；「不考虑」的用红字。 */
+     分三行写，哪一行没有内容就不出：意图一行；范围（本次看等）一行；其余条件一行。
+     同一行里的各项用逗号隔开，不用标签样式；「不考虑」的用红字。 */
   var negSeen=[];
   function undRange(c){var ck=chipKey(c);return ck.lb==='本次看'||ck.lb==='关注区域'||!!RANGE_K[ck.k];}
   var _condChips12=condChips;condChips=function(kind,pending,t){
@@ -2904,17 +2906,21 @@ return null;}
     var head=[],cur=[],neg=[],range=[],shown=0;
     out.forEach(function(c){var cls=c.cls||'',tx=c.t||'';
       if(/(^| )(lbl|brk)( |$)/.test(cls))return;
-      if(/^模型判意图/.test(tx)){head.push({t:tx.replace(/^模型判意图/,'意图')});return;}
+      if(/^模型判意图/.test(tx)){head.push({t:tx.replace(/^模型判意图/,'意图'),ln:'i'});return;}
       var isNew=/(^| )new( |$)/.test(cls)||!!nn[tx];
-      if(undRange(c)){if(isNew)shown++;range.push({t:tx});return;}
+      if(undRange(c)){if(isNew)shown++;range.push({t:tx,ln:'r'});return;}
       if(!isNew)return;
       shown++;(c.neg?neg:cur).push({t:tx,neg:c.neg});});
     /* 这句话记下、但上游本来不列的内容（没归到具体维度的「记下：…」）也要回显出来 */
     Object.keys(nn).forEach(function(lb){if(out.some(function(c){return c.t===lb;}))return;shown++;var ng=/^(不要|不考虑)/.test(lb);(ng?neg:cur).push({t:lb,neg:ng});});
     /* 档案有改动、但没有对应条件可写时仍出块，好让「不记入档案」有地方放 */
     if(!shown&&!((pendingUndo&&!pendingUndo.done)||t.rkUndo))return [];
-    return head.concat(cur,neg,range);};
-  function undLine(chips){return '<div class="v3und"><div class="v4undtx"><i class="ti ti-scan" style="color:#0F6E56"></i><span class="v4undlb">AI 理解为：</span>'+chips.map(function(c,i){/* 每一项连同后面的逗号包成一个整体，换行只发生在两项之间，不把「本次看：」和区域名拆到两行 */return '<span class="v4ui"><span class="v4uc'+(c.neg?' neg':'')+'">'+esc(c.t)+'</span>'+(i<chips.length-1?'，':'')+'</span>';}).join('')+'</div></div>';}
+    return head.concat(range,cur,neg);};
+  function undLine(chips){var rows={i:[],r:[],c:[]};chips.forEach(function(c){(rows[c.ln]||rows.c).push(c);});
+    /* 每一项连同后面的逗号包成一个整体，换行只发生在两项之间，不把「本次看：」和区域名拆到两行 */
+    function row(a){return a.map(function(c,i){return '<span class="v4ui"><span class="v4uc'+(c.neg?' neg':'')+'">'+esc(c.t)+'</span>'+(i<a.length-1?'，':'')+'</span>';}).join('');}
+    var ls=[rows.i,rows.r,rows.c].filter(function(a){return a.length;});
+    return '<div class="v3und"><div class="v4undtx">'+ls.map(function(a,i){return '<div class="v4undrow">'+(i===0?'<i class="ti ti-scan" style="color:#0F6E56"></i><span class="v4undlb">AI 理解为：</span>':'')+row(a)+'</div>';}).join('')+'</div></div>';}
 
 })();
 </script>
