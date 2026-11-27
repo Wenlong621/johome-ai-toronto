@@ -244,6 +244,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -384,6 +385,25 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 /* 对话区完全展开（收起地图）时盖满整个区域：不露出地图边和右上角的图层按钮；顶部的拖动条保留，往下拉可以重新露出地图 */
 .v4sheet.full{height:100%;border-radius:0;box-shadow:none}
+
+/* 详情页右上的「问 AI」是一个图标 */
+.v4asktop{width:30px;height:30px;padding:0;justify-content:center;border-radius:50%;font-size:15px}
+/* 主会话里聊某套房：用户一侧的房源卡、引导问题、输入框上方的「正在聊」 */
+#jhp .chat .ubub.v4askcard{padding:8px;max-width:236px;width:236px}
+.v4askcard .t{font-size:11.5px;margin:0 2px 6px}
+.v4askcard .c{display:flex;gap:8px;align-items:center;background:var(--color-background-primary);color:var(--color-text-primary);border-radius:10px;padding:7px;cursor:pointer}
+.v4askcard .im{flex:none;width:44px;height:44px;border-radius:8px;background:var(--color-background-secondary);display:flex;align-items:center;justify-content:center;color:var(--color-text-tertiary);font-size:18px}
+.v4askcard .bd{min-width:0}
+.v4askcard .p{font-size:13px;font-weight:600}
+.v4askcard .s{font-size:10.5px;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v4askwrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.v4askrow{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 10px;border-radius:10px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);font-size:12px;color:var(--color-text-primary);cursor:pointer}
+.v4askrow i{flex:none;color:#0F6E56;font-size:15px}
+.v4askrow span{flex:1;min-width:0}
+.v4focus{display:flex;align-items:center;gap:6px;padding:5px 12px;font-size:11px;color:#0F6E56;background:#E1F5EE;border-top:0.5px solid #9FE1CB;flex:none}
+.v4focus span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.v4focus [data-x]{cursor:pointer;color:var(--color-text-secondary);font-size:13px}
+#jhp .chat .v4askwrap>.bub{background:none;border:0;border-radius:0;padding:0 1px;max-width:100%}
 </style>
 </head>
 <body>
@@ -1234,10 +1254,10 @@ return null;}
   function findItem(id){if(lastBatch)for(var i=0;i<lastBatch.items.length;i++)if(lastBatch.items[i].l.id===id)return lastBatch.items[i];var l=LIDX[id];return l?{l:l,sc:softScore(profile,l),relax:[]}:null;}
   function riskList(l){var r=[];if(l.frontage)r.push('临主干道，噪音需实地确认');if(l.nuisance)r.push('附近有'+l.nuisance);if(l.lease)r.push('Leasehold 产权，融资与转售受限');if(l.year<1995)r.push('楼龄 '+(2026-l.year)+' 年，关注维修基金与特别摊款');if(l.type==='Condo'&&!l.elevator)r.push('无电梯');if(l.fee>550)r.push('月费 $'+l.fee+' 偏高，核对含项');if(l.parkType==='Exclusive')r.push('车位为 Exclusive Use，非产权');if(l.pets==='限制')r.push('宠物有限制');if(l.rentals==='限制')r.push('出租有限制');if(l.flood)r.push('位于洪泛区');if(l.age55)r.push('55+ 年龄限制楼');return r;}
   function matchLines(l){var p=profile,ok=[],bad=[],unk=[];var br=budgetRange(p.budget);if(br){(l.price>=br[0]&&l.price<=br[1]?ok:bad).push('预算 '+p.budget+'（$'+l.price+'万）');}if(p.htype){(typeOK(l,p.htype)?ok:bad).push('房型 '+p.htype);}var bd=parseInt(((p.beds||'').match(/\d/)||[0])[0],10);if(bd)(l.beds>=bd?ok:bad).push('卧室 ≥'+bd+'（'+l.beds+'）');if(p.pet)(l.pets==='允许'?ok:bad).push('允许宠物');if(p.nearTransit||/公交|天车|地铁/.test(p.mode||''))(l.rail<=1000?ok:bad).push('距'+V4.rail+'站 '+l.rail+'m');avoidList(p).forEach(function(a){var hit=!stage2({avoid:[a]},l);if(a.hard){if(hit)bad.unshift('命中不考虑项：'+a.value);else ok.push('避开了'+a.value);}else{if((a.dim==='临街·噪音源'&&l.frontage)||(a.dim==='周边厌恶设施'&&l.nuisance))bad.unshift('你说过不喜欢'+a.value+'，这套可能'+(a.dim==='临街·噪音源'?'临街':'有'+l.nuisance));else ok.push('避开了'+a.value+'（AI 判断）');}});if(!p.feeMax)unk.push('物业费含项（未核对）');return {ok:ok,bad:bad,unk:unk};}
-  /* 房源详情页顶栏：「问 AI」在右上、收藏旁边。吸底栏是现有 App 的经纪栏（头像、名字、联系方式），AI 的入口不占它 */
-  function dhdAsk(t,id){return '<div class="hd"><i class="ti ti-arrow-left bk"></i><div style="flex:1;min-width:0;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t+'</div><button class="v4asktop" data-v3="ask" data-id="'+id+'"><i class="ti ti-sparkles"></i>问 AI</button><i class="ti ti-heart muted" style="font-size:19px"></i></div>';}
+  /* 房源详情页顶栏：「问 AI」是右上角、收藏旁边的一个图标，点了回到 Johome AI 主会话聊这套房（askInChat，在 p11）。吸底栏是现有 App 的经纪栏（头像、名字、联系方式），AI 的入口不占它 */
+  function dhdAsk(t,id){return '<div class="hd"><i class="ti ti-arrow-left bk"></i><div style="flex:1;min-width:0;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t+'</div><button class="v4asktop" data-v3="ask" data-id="'+id+'" title="问 AI" aria-label="问 AI"><i class="ti ti-sparkles"></i></button><i class="ti ti-heart muted" style="font-size:19px"></i></div>';}
   /* 旧版房源详情页（社区页里的示例房源点进来）同样处理：「问 AI」挪到顶栏、收藏旁边，吸底换成经纪栏。按钮元素原样挪过去，点击行为不变 */
-  var _openListing2=openListing;openListing=function(label,invest){_openListing2(label,invest);(function(){var w=document.createTreeWalker(detail,NodeFilter.SHOW_TEXT,null),n;while((n=w.nextNode())){if(n.nodeValue.indexOf('为什么推给你')>=0)n.nodeValue=n.nodeValue.replace('为什么推给你','为你而选');if(n.nodeValue.indexOf('的硬条件')>=0)n.nodeValue=n.nodeValue.replace('的硬条件','的条件');}})();var bar=detail.querySelector('.inbar'),hd=detail.querySelector('.hd'),ask=bar&&bar.querySelector('[data-cta="ask"]');if(!bar||!hd||!ask)return;ask.className='v4asktop';ask.removeAttribute('style');ask.innerHTML='<i class="ti ti-sparkles"></i>问 AI';hd.insertBefore(ask,hd.lastElementChild);var tmp=document.createElement('div');tmp.innerHTML=agentBar();bar.parentNode.replaceChild(tmp.firstChild,bar);};
+  var _openListing2=openListing;openListing=function(label,invest){_openListing2(label,invest);(function(){var w=document.createTreeWalker(detail,NodeFilter.SHOW_TEXT,null),n;while((n=w.nextNode())){if(n.nodeValue.indexOf('为什么推给你')>=0)n.nodeValue=n.nodeValue.replace('为什么推给你','为你而选');if(n.nodeValue.indexOf('的硬条件')>=0)n.nodeValue=n.nodeValue.replace('的硬条件','的条件');}})();var bar=detail.querySelector('.inbar'),hd=detail.querySelector('.hd'),ask=bar&&bar.querySelector('[data-cta="ask"]');if(!bar||!hd||!ask)return;ask.className='v4asktop';ask.removeAttribute('style');ask.innerHTML='<i class="ti ti-sparkles"></i>';ask.title='问 AI';ask.setAttribute('aria-label','问 AI');hd.insertBefore(ask,hd.lastElementChild);var tmp=document.createElement('div');tmp.innerHTML=agentBar();bar.parentNode.replaceChild(tmp.firstChild,bar);};
   /* 吸底栏：现有 App 的经纪栏（头像、名字、联系方式）。原型里只做示意，不属于 AI 功能，按钮不接流程 */
   function agentBar(){var an=V4.agentName||'',nm=an.replace(/^Johome\s*经纪\s*/,'')||an,tip='现有 App 的联系入口，原型不演示';
     return '<div class="inbar v4agbar"><div class="v4agav"><i class="ti ti-user"></i></div><div style="flex:1;min-width:0"><div class="v4agnm">'+esc(nm)+'</div><div class="muted" style="font-size:10.5px">Johome 经纪</div></div><button class="v4agbtn" title="'+tip+'"><i class="ti ti-phone"></i>电话</button><button class="v4agbtn" title="'+tip+'"><i class="ti ti-brand-wechat"></i>微信</button></div>';}
@@ -1311,7 +1331,7 @@ return null;}
   var affOpen=false;
   var _wirePage=wirePage;wirePage=function(){_wirePage();var n,i;n=detail.querySelectorAll('.cc[data-kind="v3"]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){openListingV3(el.getAttribute('data-tap'));};})(n[i]);
     n=detail.querySelectorAll('[data-v3]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){var a=el.getAttribute('data-v3'),id=el.getAttribute('data-id'),l=LIDX[id];
-      if(a==='ask')openAskSheet(l);else if(a==='like')likeListing(l);else if(a==='dislike'){showChat();dislikeReason(l);}else if(a==='hconfirm')hConfirm();else if(a==='handoffpage')openHandoffPage();else if(a==='revoke'){handoff=null;showChat();typing(function(){addAI('已撤销对 '+V4.agentName+' 的授权，停止新的共享。');});}else if(a==='affgo')affordFromForm();};})(n[i]);
+      if(a==='ask')askInChat(l);else if(a==='like')likeListing(l);else if(a==='dislike'){showChat();dislikeReason(l);}else if(a==='hconfirm')hConfirm();else if(a==='handoffpage')openHandoffPage();else if(a==='revoke'){handoff=null;showChat();typing(function(){addAI('已撤销对 '+V4.agentName+' 的授权，停止新的共享。');});}else if(a==='affgo')affordFromForm();};})(n[i]);
     n=detail.querySelectorAll('[data-vdel]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(e){e.stopPropagation();avoidList(profile).splice(+el.getAttribute('data-vdel'),1);pref();replacePage(profilePage());};})(n[i]);
     n=detail.querySelectorAll('[data-vrdel]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(e){e.stopPropagation();avoidRaw(profile).splice(+el.getAttribute('data-vrdel'),1);pref();replacePage(profilePage());};})(n[i]);
     n=detail.querySelectorAll('[data-daily]');for(i=0;i<n.length;i++)(function(el){el.onclick=function(){var a=el.getAttribute('data-daily');if(a==='on'||a==='off'){daily.on=a==='on';replacePage(profilePage());}else if(a==='sim'){showChat();simulateDaily();}else if(a==='fail'){daily.failed=true;replacePage(profilePage());setTimeout(function(){daily.failed=false;},8000);}};})(n[i]);
@@ -2820,6 +2840,26 @@ return null;}
   /* ---------- 房源卡一次出 5 套，「换一批」按排序顺位往后再取 5 套；队列空了就不出按钮 ---------- */
   function moreBatch(from,typed){var b=from&&from.batch,rest=(b&&b.rest)||[];if(!rest.length)return false;if(!typed)addUser('换一批');var tn=newTurn();tn.kind='listing';tn.text=from.text;tn.skipped=true;tn.relax=from.relax||null;tn.queue={items:rest.slice(),base:b,start:(b.start||0)+b.items.length};b.rest=[];typing(function(){buildTurn(tn);renderTurn(tn);if(mapShown())setSheet('half');});return true;}
   var _buildTurn11m=buildTurn;buildTurn=function(t){_buildTurn11m(t);if(t.kind==='listing'&&t.batch&&t.batch.rest&&t.batch.rest.length&&t.html&&!(t.asks&&t.asks.length)){t.extra=t.extra||[];var chip={label:'换一批',icon:'ti-refresh',solo:true,fn:function(){moreBatch(t);}},wr=null;t.extra.forEach(function(x){if(x.id==='wr'+t.id)wr=x;});/* 和「把 X 加入到关注」放同一行；两个按钮互不影响，点了哪个只置灰哪个 */if(wr){wr.chips.forEach(function(c){c.solo=true;});if(!wr.chips.some(function(c){return c.label==='换一批';}))wr.chips.push(chip);}else if(!t.extra.some(function(x){return x.id==='mb'+t.id;}))t.extra.push({id:'mb'+t.id,chips:[chip]});}};
+  /* ---------- 详情页的「问 AI」并进 Johome AI 主会话 ----------
+     点详情页右上的图标：回到主会话，用户一侧先出一张「来聊聊这套房源」的房源卡，下面给几个买家常问的引导问题。
+     之后输入框上方标着「正在聊：这套房」；这时问的关于这套房的问题按房源资料直接回答（askAnswer），其他话仍走主流程。
+     出了新的结果卡、或点了 × 就不再盯着这套房 */
+  var askFocus=null;
+  var ASK_STARTERS=[['ti-chart-line','这个价格合理吗？'],['ti-calculator','我买得起吗？每月要付多少？'],['ti-checklist','它符合我的要求吗？'],['ti-alert-triangle','有哪些风险需要留意？'],['ti-school','上学和通勤方便吗？']];
+  function askReply(l,q){if(/上学.*通勤|通勤.*上学|学校.*通勤|通勤.*学校/.test(q))return askAnswer(l,'对口学校')+'<br><br>'+askAnswer(l,'通勤到我公司');return askAnswer(l,q);}
+  function askSay(l,q){addUser(q);var r=parseNeg(q,profile);if(r&&r.added&&r.added.length)pref();typing(function(){addAI(askReply(l,q));});}
+  function askStrip(){var bar=chatView.querySelector('.inbar'),old=chatView.querySelector('.v4focus');if(old)old.parentNode.removeChild(old);if(!askFocus||!bar)return;var l=askFocus,s=document.createElement('div');s.className='v4focus';s.innerHTML='<i class="ti ti-home"></i><span>正在聊：$'+l.price+'万 · '+esc(l.nb)+'</span><i class="ti ti-x" data-x="1"></i>';bar.parentNode.insertBefore(s,bar);s.querySelector('[data-x]').onclick=function(){askFocus=null;askStrip();};s.querySelector('span').onclick=function(){openListingV3(l.id);};}
+  function askInChat(l){if(!l)return;askFocus=l;showChat();setSheet('full');
+    var u=document.createElement('div');u.className='row me';u.innerHTML='<div class="ubub v4askcard"><div class="t">来聊聊这套房源</div><div class="c"><div class="im"><i class="ti ti-photo"></i></div><div class="bd"><div class="p">$'+l.price+'万</div><div class="s">'+l.beds+' 床 '+l.baths+' 浴 · '+ltypeCN(l)+' · '+esc(l.nb)+'</div></div></div></div>';list.appendChild(u);u.querySelector('.c').onclick=function(){openListingV3(l.id);};
+    typing(function(){var r=document.createElement('div');r.className='row v4askq';r.innerHTML='<div class="v4askwrap"><div class="bub">想了解这套房子的哪些方面？</div>'+ASK_STARTERS.map(function(x,i){return '<button class="v4askrow" data-i="'+i+'"><i class="ti '+x[0]+'"></i><span>'+x[1]+'</span><i class="ti ti-chevron-right"></i></button>';}).join('')+'<div class="qr" style="padding-left:0;margin-top:2px"><button class="q" data-act="like"><i class="ti ti-heart"></i>感兴趣</button><button class="q" data-act="dislike" style="border-color:#E4B4AD;color:#B23B2E"><i class="ti ti-thumb-down"></i>不合适</button></div></div>';list.appendChild(r);
+      Array.prototype.forEach.call(r.querySelectorAll('.v4askrow'),function(b){b.onclick=function(){askSay(l,ASK_STARTERS[+b.getAttribute('data-i')][1]);};});
+      r.querySelector('[data-act="like"]').onclick=function(){likeListing(l);};r.querySelector('[data-act="dislike"]').onclick=function(){dislikeReason(l);};scroll();});
+    askStrip();scroll();}
+  /* 打字问的是不是这套房：点名了「这套 / 它」，或者是一句短的房源问题且不像在找新的结果 */
+  var ASK_REF=/这套|这个房|这房|这间|它|该房源/,ASK_TOPIC=/值不值|合理|贵不贵|贵吗|便宜吗|买得起|月供|首付够|月费|管理费|物业费|对口|学校|学区|上学|通勤|风险|要注意|有什么坑|匹配|符合我|适合我|怎么样|翻译|砍价|还价|议价|挂了多久|周边/,ASK_NEW=/推荐|帮我找|想找|看看别的|换一批|社区|生活圈|城市|哪个区|哪里|预算|万以内|万以下|改成|换成|不要|不考虑/,ASK_REFACT=/不合适|不喜欢|约看|保存|收藏|感兴趣|喜欢这/;
+  function askIsQ(t){if(!askFocus)return false;t=(t||'').trim();if(!t||ASK_REFACT.test(t))return false;if(ASK_REF.test(t))return true;return t.length<=18&&ASK_TOPIC.test(t)&&!ASK_NEW.test(t);}
+  var _v4Send11=v4Send;v4Send=function(t){if(askIsQ(t)){askSay(askFocus,(''+t).trim());return;}_v4Send11(t);};
+  if(window.__v4)window.__v4.send=function(t){v4Send(t);};
   /* ---------- 一次回答的所有块放进同一个回答框 ----------
      renderTurn 仍按原来的方式一块一行地出（AI 理解为 / 追问 / 导语 / 卡片 / 选一个 / 放宽 / 其他），
      这里在最外层把这些行的内容挪进一个框里：回复前面不放头像，框占满整行。节点是原样挪过去的，按钮上的点击不受影响 */
@@ -2828,7 +2868,7 @@ return null;}
     rows.forEach(function(r){var sec=document.createElement('div');sec.className='v4sec';Array.prototype.slice.call(r.children).forEach(function(c){if(c.classList&&c.classList.contains('av'))return;sec.appendChild(c);});if(sec.querySelector('.v3und'))sec.className+=' v4sund';else if(sec.querySelector('.v4scroll'))sec.className+=' v4scards';if(sec.children.length)box.appendChild(sec);r.parentNode.removeChild(r);});
     wrap.appendChild(box);el.appendChild(wrap);}
   /* 换一批之后的导语不说内部的排序顺位，只说「为你推荐另一批 X」，X 随卡片类型变 */
-  var _renderTurn11=renderTurn;renderTurn=function(t){var sv=t.lead;if(t.lead&&t.excludeNames&&t.excludeNames.length)t.lead=t.lead.replace(/为你挑选了这 ?\d+ ?(?:个|所)?\s*([^：]+)：/,'为你推荐另一批$1：');try{_renderTurn11(t);}finally{t.lead=sv;}try{boxTurn(t);}catch(e){}};
+  var _renderTurn11=renderTurn;renderTurn=function(t){var sv=t.lead;if(t.lead&&t.excludeNames&&t.excludeNames.length)t.lead=t.lead.replace(/为你挑选了这 ?\d+ ?(?:个|所)?\s*([^：]+)：/,'为你推荐另一批$1：');try{_renderTurn11(t);}finally{t.lead=sv;}try{boxTurn(t);}catch(e){}if(askFocus&&t.html&&t.html.indexOf('v4scroll')>=0){askFocus=null;askStrip();}};
   spTrack();
   window.__v11={tasks:function(){return TASKS.slice();},circ:function(){return lastTurn&&lastTurn.circ;},schools:function(){return scAll().length;},near:function(n,c){return nbsNear({name:n,city:c}).slice();},conds:function(k){return spConds(k).map(function(x){return x.label;});},
     /* 排序模型会收到的事实字段和补充规则，便于不开模型时核对 */
