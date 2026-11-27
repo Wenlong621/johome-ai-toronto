@@ -255,6 +255,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2273,11 +2274,12 @@ return null;}
     axCall(axPayload(t,mode)).then(function(res){t.llm='done';t.llmRes=res;t.lead=keep.lead;t.html=keep.html;t.layers=keep.layers;t.pick=keep.pick;axApply(t);renderTurn(t);if(t.layers&&mapShown())setSheet('half');})
       .catch(function(e){t.llm='fail';t.lead=keep.lead;t.html=keep.html;t.layers=keep.layers;t.pick=keep.pick;if(mode==='open'&&!t.lead)t.lead='这个问题我暂时答不了。';renderTurn(t);addAI('<span class="muted" style="font-size:11px">模型回答失败（'+esc((e&&e.message)||String(e))+'），先按通用口径给出。</span>');});}
 
-  /* ---------- 追问：模型选项 + 规则保底，一轮一个块，最多 3 行 ---------- */
+  /* ---------- 追问：只按 PRD 4.3 的最低条件来，一轮一个块 ---------- */
   var NO_MODEL_ASK={zone:1,city:1,market:1,knowledge:1,timing:1,ack:1,who:1,agentq:1,advice:1,share:1,offtopic:1,browse:1,closing:1,more:1,ref:1,daily:1,narrative:1};
-  function axMergeAsks(t){if(!mxOn()||t.skipped||NO_MODEL_ASK[t.kind]||!(t.mAsks&&t.mAsks.length))return;var have=t.asks||[],add=firstMissing(t.mAsks).filter(function(a){return !have.some(function(h){return h.field===a.field;});});if(!add.length)return;
-    if(!have.length){t.html='';t.lead='';t.layers=null;t.pick=null;t.relaxOpts=[];t.batch=null;t.extra=[];t.askFirst=true;t.askHead='先确认'+add.map(function(a){return a.label;}).join('和')+'，我再给结果：';}
-    t.asks=have.concat(add).slice(0,3);}
+  /* 各意图缺哪几项，由 buildTurn 里的 firstMissing 按 4.3 的最低条件算出（t.asks）。
+     模型建议的追问项（t.mAsks）不再并进来：最低条件齐了就直接出结果，不为模型想多问的一项压住结果。
+     例：选社区只要房型和预算，档案里都有时不应该先问「在哪上班」 */
+  function axMergeAsks(t){return;}
 
   var _buildTurn7=buildTurn;buildTurn=function(t){
     if(!(t.criteria&&t.criteria.length)&&t.text&&critByText[t.text])t.criteria=critByText[t.text];
