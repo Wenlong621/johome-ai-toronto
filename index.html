@@ -254,6 +254,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2935,6 +2936,14 @@ return null;}
     function row(a){return a.map(function(c,i){return '<span class="v4ui"><span class="v4uc'+(c.neg?' neg':'')+'">'+esc(c.t)+'</span>'+(i<a.length-1?'，':'')+'</span>';}).join('');}
     var ls=[rows.i,rows.r,rows.c].filter(function(a){return a.length;});
     return '<div class="v3und"><div class="v4undtx">'+ls.map(function(a,i){return '<div class="v4undrow">'+(i===0?'<i class="ti ti-scan" style="color:#0F6E56"></i><span class="v4undlb">AI 理解为：</span>':'')+row(a)+'</div>';}).join('')+'</div></div>';}
+
+  /* ===================== 地图右上角的「房源 / 范围 / 条件」按钮：这次地图上有哪一类才显示哪一个 =====================
+     每次重画地图之后数一下三个图层里各有多少东西，空的那一类不显示按钮；三类都没有时整排不显示。
+     用户手动关掉的图层仍然显示按钮（灰色），方便再打开。 */
+  function legendSync(){var el=document.querySelector('#jhp .v4legend')||document.querySelector('.v4legend');if(!el)return;var any=0;
+    ['pins','areas','cond'].forEach(function(k){var b=el.querySelector('[data-lg="'+k+'"]'),n=(LG[k]&&LG[k].getLayers)?LG[k].getLayers().length:0;if(b)b.style.display=n?'':'none';any+=n;});
+    el.style.visibility=any?'':'hidden';}
+  var _setLayers12=setLayers;setLayers=function(spec){_setLayers12(spec);try{legendSync();}catch(e){}};
 
 })();
 </script>
