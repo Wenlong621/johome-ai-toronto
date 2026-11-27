@@ -243,6 +243,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -380,6 +381,9 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 .v4fitrow i{flex:none;margin-top:3px;font-size:11px;color:#0F6E56}
 .v4fitrow b{font-weight:500}
 .v4fitrow.bad,.v4fitrow.bad i{color:#B23B2E}
+
+/* 对话区完全展开（收起地图）时盖满整个区域：不露出地图边和右上角的图层按钮；顶部的拖动条保留，往下拉可以重新露出地图 */
+.v4sheet.full{height:100%;border-radius:0;box-shadow:none}
 </style>
 </head>
 <body>
