@@ -242,6 +242,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -1106,8 +1107,9 @@ return null;}
     LPOOL.forEach(function(l){LIDX[l.id]=l;});return LPOOL;}
   function typeCN(t){return t==='Condo'?'公寓':t==='Townhouse'?'联排':t;}
   /* 房型五类：公寓 / 联排 / 1/2 Duplex / 独立屋 / 多户住宅。示例房源的 type 仍只有三种，1/2 Duplex 和多户住宅用 semi / multi 两个标记表示 */
-  /* 「为你而选」块里一条理由的写法：✓ 条件：事实；没有对应条件时只写事实；不符合的用 ✗ 红字排最前 */
-  function fitRow(p){var f=p['for'],bad=!!p.bad;return '<div class="v4fitrow'+(bad?' bad':'')+'"><i class="ti '+(bad?'ti-x':'ti-check')+'"></i><span>'+(f?('<b>'+esc(f)+'</b>：'):'')+(p.raw?p.fact:esc(p.fact))+'</span></div>';}
+  /* 「为你而选」块里一条理由的写法：对照「我的档案」，写成「✓ 事实，符合你「条件」的要求」；不符合的写「✗ 事实，不符合你「条件」的要求」，红字排最前；
+     没有对应条件的（这个对象自己突出的事实）只写事实 */
+  function fitRow(p){var f=(p['for']||'').replace(/\s*[：:]\s*/g,' ').trim(),bad=!!p.bad,fact=p.raw?p.fact:esc(p.fact);return '<div class="v4fitrow'+(bad?' bad':'')+'"><i class="ti '+(bad?'ti-x':'ti-check')+'"></i><span>'+fact+(f?('，'+(bad?'不符合':'符合')+'你「<b>'+esc(f)+'</b>」的要求'):'')+'</span></div>';}
   function fitRows(a){return a.map(fitRow).join('');}
   function fitBullets(s){s=(s||'').replace(/硬条件/g,'条件');if(s.indexOf('· ')!==0)return s;return fitRows(s.slice(2).split('<br>· ').map(function(x){return {'for':'',fact:x,raw:1};}));}
   function ltype(l){return l.semi?'1/2 Duplex':l.multi?'多户住宅':l.type;}
@@ -1239,13 +1241,13 @@ return null;}
      ① 不符合的条件（✗，红字）排最前；② 排序模型给的理由（来自推荐结果时才有）；③ 按模板对照档案条件逐项列出命中的；
      没有模型理由时，③ 之后补最多两条这套房突出的事实。每条都是 {for: 回应的条件, fact: 这套房的事实} */
   function matchPairs(l){var p=profile,ok=[],bad=[],br=budgetRange(p.budget),d=nbData(l.nb,l.city);
-    if(br){var med=Math.round(d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9)),df=med?Math.round((med-l.price)/med*100):0;(l.price>=br[0]&&l.price<=br[1]?ok:bad).push({'for':'预算 '+p.budget,fact:'$'+l.price+'万'+(df>=3?('，低于同类中位价 '+df+'%'):'')});}
-    if(p.htype)(typeOK(l,p.htype)?ok:bad).push({'for':'房型 '+p.htype,fact:ltypeCN(l)});
+    if(br){var med=Math.round(d.med*(l.type==='Condo'?0.62:l.type==='Townhouse'?1:1.9)),df=med?Math.round((med-l.price)/med*100):0;(l.price>=br[0]&&l.price<=br[1]?ok:bad).push({'for':'预算 '+p.budget,fact:'价格 $'+l.price+'万'+(df>=3?('，低于同类中位价 '+df+'%'):'')});}
+    if(p.htype)(typeOK(l,p.htype)?ok:bad).push({'for':'房型 '+p.htype,fact:'房型是'+ltypeCN(l)});
     var bd=parseInt(((p.beds||'').match(/\d/)||[0])[0],10);if(bd)(l.beds>=bd?ok:bad).push({'for':'卧室数 '+p.beds,fact:l.beds+' 室 '+l.baths+' 浴'});
-    var ar=areaRange(p.sqftMin);if(ar)((l.sqft>=ar[0]&&l.sqft<=ar[1])?ok:bad).push({'for':'面积 '+p.sqftMin,fact:l.sqft.toLocaleString()+' sqft'});
+    var ar=areaRange(p.sqftMin);if(ar)((l.sqft>=ar[0]&&l.sqft<=ar[1])?ok:bad).push({'for':'面积 '+p.sqftMin,fact:'面积 '+l.sqft.toLocaleString()+' sqft'});
     if(p.pet)(l.pets==='允许'?ok:bad).push({'for':'宠物友好',fact:l.pets==='允许'?'允许养宠物':'宠物有限制'});
     if(p.nearTransit||/公交|天车|地铁/.test(p.mode||''))(l.rail<=1000?ok:bad).push({'for':'近轨道交通',fact:'距'+V4.rail+'站 '+l.rail+'m'});
-    avoidList(p).forEach(function(a){var lb=avoidLabel(a);if(a.hard){var hit=!stage2({avoid:[a]},l);(hit?bad:ok).push({'for':lb,fact:hit?'这套命中了这一项':'这套没有这个问题'});}else{var soft=(a.dim==='临街·噪音源'&&l.frontage)||(a.dim==='周边厌恶设施'&&l.nuisance);(soft?bad:ok).push({'for':lb,fact:soft?(a.dim==='临街·噪音源'?'这套可能临街':('附近有'+l.nuisance)):'这套没有这个问题'});}});
+    avoidList(p).forEach(function(a){var lb=avoidLabel(a);if(a.hard){var hit=!stage2({avoid:[a]},l);(hit?bad:ok).push({'for':lb,fact:hit?'这套有这个问题':'这套没有这个问题'});}else{var soft=(a.dim==='临街·噪音源'&&l.frontage)||(a.dim==='周边厌恶设施'&&l.nuisance);(soft?bad:ok).push({'for':lb,fact:soft?(a.dim==='临街·噪音源'?'这套可能临街':('附近有'+l.nuisance)):'这套没有这个问题'});}});
     return {ok:ok,bad:bad};}
   function listingFit(l,it){var mp=matchPairs(l),out=[],seen={},prs=(it&&it.sc&&it.sc.pairs)||null;
     mp.bad.forEach(function(x){x.bad=1;out.push(x);});
@@ -2371,7 +2373,7 @@ return null;}
     '输入是一个 JSON：card = 这次出哪类卡；「本轮条件」= 用户这句话刚提出的条件和评判标准，其中的「不要」是这句话刚说要避开的；「软条件」= 档案里已有的偏好；「尽量避开」= 档案里的负向偏好；「硬条件」= 已经用来筛过候选的条件；items = 要写理由的候选，每个有 name 和事实字段。',
     '',
     '1. items 里的每个候选都要写，name 照抄。每个候选写 2–3 条 why，每条是 {"for": "...", "fact": "..."}。',
-    '2. for = 这条回应的是用户的哪个条件，照抄输入里「本轮条件 / 软条件 / 尽量避开 / 硬条件」中的原文，不改写、不合并；没有可回应的条件时填空字符串。',
+    '2. 每条理由都要对照用户的条件来写：for = 这条回应的是用户的哪个条件，取自输入里的「本轮条件 / 软条件 / 尽量避开 / 硬条件」。有字段名的写成「字段名 值」（如「卧室数 3室」「近轨道交通」），评判标准和「不要」照抄原话；不改写、不合并，不要只写字段名。只有完全没有条件可回应时才填空字符串。',
     '3. fact = 这个候选对应的事实，写成短语，不成句、不带句末标点；card 是房源时不超过 10 个字，其他不超过 16 个字。',
     '4. 顺序：有本轮条件时第一条必须回应本轮条件，之后回应软条件；同一个条件只写一条。',
     '5. 所有候选都满足的硬条件（在预算内、房型、卧室数）不当理由写，除非能给出有区分度的事实（如「低于同类中位价 9%」「预算内房源占 93%」）。',
