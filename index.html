@@ -260,6 +260,7 @@ body{background:#eceae3;font-family:var(--font-sans);color:var(--color-text-prim
 
 
 
+
 /* ===== v4 layer (spec 2026-10-28): 地图在底 + 三段式 sheet、结果先行、放宽 chips、每日推荐、可负担性 ===== */
 .v4body{flex:1;min-height:0;position:relative;overflow:hidden}
 #v4map{position:absolute;inset:0;background:#e9ecef}
@@ -2989,23 +2990,22 @@ return null;}
      原来每句话都从零重判意图：回答追问的「房型 Townhouse，预算 80–120万」被判成找房源；
      刚出完社区卡补一句「不要太偏远的」也被判成找房源，于是悄悄从选社区变成了找房源。
      现在统一由模型判断关系，按顺序取第一个成立的：
-       answer   = 在回答上一轮刚提的追问            → 用追问的意图
-       continue = 在延续上一个意图（补充 / 修改条件、评价结果，或补上未完成任务还缺的内容）→ 用被延续任务的意图
-       new      = 独立的新任务                      → 用模型判出的新意图
-     追问只挂一轮：紧接着的那一句没有回答，追问块就锁定。但停在追问上的任务不丢，之后仍可被 continue 接回，
-     直到有新的推荐类任务出了结果把它顶掉。
+       answer   = 在回答上一轮刚提的追问                      → 用追问的意图
+       continue = 在延续上一个意图（补充 / 修改条件、评价上一组结果） → 用上一结果组的意图
+       new      = 独立的新任务                                → 用模型判出的新意图
+     交给模型的会话状态只有两项：挂起的追问、上一结果组。
+     追问只挂一轮：紧接着的那一句没有回答，追问块就锁定，那个任务就此放下，用户想继续要重新提出。
      没开模型、或模型没返回关系时，走原来的规则（追问挂着、这句话填上了被问的项 = 回答追问）。 */
-  var REC12={listing:1,nb:1,zone:1,city:1,school:1,district:1};
-  var sendSeq=0,liveAsk=null,curLive=null,unfin=null,lastRes=null,mxRel=null,critOwn12=0;
+  var sendSeq=0,liveAsk=null,curLive=null,lastRes=null,mxRel=null,critOwn12=0;
   function uniq12(a){var o=[];a.forEach(function(x){if(x&&o.indexOf(x)<0)o.push(x);});return o;}
   /* 每次重画一个回合后记一下状态：它是停在追问上，还是出了结果 */
   function trackTurn(t){if(!t||t.silent||!t.kind)return;if(t._seq==null)t._seq=sendSeq;
-    if(t.asks&&t.asks.length){t.askedLabels=t.asks.map(function(a){return a.label;});if(!liveAsk||liveAsk.turn!==t)liveAsk={turn:t,seq:t._seq};if(REC12[t.kind])unfin=t;return;}
+    if(t.asks&&t.asks.length){t.askedLabels=t.asks.map(function(a){return a.label;});if(!liveAsk||liveAsk.turn!==t)liveAsk={turn:t,seq:t._seq};return;}
     if(liveAsk&&liveAsk.turn===t&&t._seq===sendSeq)liveAsk=null;/* 同一轮里点了「跳过」，追问已经了结 */
     if(t.rkPending||t.llm==='pending')return;/* 结果还在等模型，先不算 */
     if(t.askFirst||!(t.html||t.lead))return;
     if(NEW_KINDS[t.kind]||t.kind==='need'){lastRes=null;return;}/* 知识卡、闲聊之后没有可延续的结果组（PRD 6.6） */
-    lastRes=t;if(REC12[t.kind])unfin=null;}
+    lastRes=t;}
   var _renderTurn12=renderTurn;renderTurn=function(t){_renderTurn12(t);try{trackTurn(t);}catch(e){}};
   function expireAsk(a){if(!a)return;try{if(a.el&&a.asks)lockAsk(a);}catch(e){}if(pendingAsk&&pendingAsk.turn===a)pendingAsk=null;if(liveAsk&&liveAsk.turn===a)liveAsk=null;}
   /* 每句话开始时：上一轮刚出的追问还算挂着；更早的一律过期锁定 */
@@ -3013,33 +3013,31 @@ return null;}
     /* 没开模型时这句话是同步处理完的：到这里追问还没被回答，就过期锁定（闲聊这类不经过 v4After 的句子也算一轮） */
     if((typeof mxOn!=='function'||!mxOn())&&curLive&&curLive.asks)expireAsk(curLive);};
   /* 交给模型的会话状态 */
-  function mxState(){var ask='无',un='无',last='无';
+  function mxState(){var ask='无',last='无';
     try{if(curLive)ask=JSON.stringify({intent:curLive.kind,'意图':INTENT_CN[curLive.kind]||curLive.kind,'在问':curLive.askedLabels||[]});}catch(e){}
-    try{if(unfin&&unfin!==curLive)un=JSON.stringify({intent:unfin.kind,'意图':INTENT_CN[unfin.kind]||unfin.kind,'还缺':unfin.askedLabels||[]});}catch(e){}
     try{if(lastRes){var lt=lastRes,cards=[];if(lt.pick&&lt.pick.names)cards=lt.pick.names.slice(0,6);else if(lt.batch&&lt.batch.items)cards=lt.batch.items.slice(0,5).map(function(it){return '$'+it.l.price+'万 '+it.l.beds+'床 '+it.l.nb;});
       last=JSON.stringify({intent:lt.kind,'类型':INTENT_CN[lt.kind]||lt.kind,'卡片':cards.map(function(n,i){return (i+1)+' '+n;})});}}catch(e){}
-    return '\n挂起的追问：'+ask+'\n未完成的任务：'+un+'\n上一结果组：'+last;}
+    return '\n挂起的追问：'+ask+'\n上一结果组：'+last;}
   if(typeof MX_SCHEMA!=='undefined'){MX_SCHEMA.properties.relation={type:'string',enum:['answer','continue','new'],description:'这句话和前面任务的关系'};MX_SCHEMA.required.push('relation');}
   var _mxSystem12=mxSystem;mxSystem=function(){return _mxSystem12()
-    +'\n21. 输入里还有三项会话状态，没有时写「无」：「挂起的追问」= 上一轮刚向用户提的追问（哪个意图、在问哪几项），只对紧接着的这一句有效；「未完成的任务」= 更早停在追问上、还没出结果的任务（还缺哪几项）；「上一结果组」= 最近给用户看的那组结果（类型和卡片）。三项里的 intent 就是意图的取值。'
-    +'\n22. relation 写这句话和前面任务的关系，按顺序取第一个成立的：answer = 「挂起的追问」不是「无」，且这句话是在回答它（给了被问的项，或只补充别的条件，没有提出新的要求）；continue = 这句话是在补充、收紧或修改条件，或在评价上一组结果（「这种太远了」「再安静一点的」），或给出了「未完成的任务」还缺的内容，没有明确要换一种结果；new = 以上都不是，是一个独立的新要求（包括中途问别的问题）。拿不准时取靠前的那个。三项状态都是「无」时只能是 new。'
-    +'\n23. relation 是 answer 或 continue 时，intent 填被延续的那个任务的 intent：answer 填「挂起的追问」的；continue 填「上一结果组」或「未完成的任务」里这句话接的那一个。不要因为句子里只有房型、预算就填 listing。例外：只对着上一组里某一张卡说的（第二个不错 / 这套太旧了 / 帮我约看第一套）intent 仍填 ref，换一批填 more，撤销 / 重新来填 correction。relation 是 new 时 intent 按规则 13 判；规则 13 末尾的「拿不准时 → listing」也只在 new 时适用。';};
+    +'\n21. 输入里还有两项会话状态，没有时写「无」：「挂起的追问」= 上一轮刚向用户提的追问（哪个意图、在问哪几项），只对紧接着的这一句有效；「上一结果组」= 最近给用户看的那组结果（类型和卡片）。两项里的 intent 就是意图的取值。'
+    +'\n22. relation 写这句话和前面任务的关系，按顺序取第一个成立的：answer = 「挂起的追问」不是「无」，且这句话是在回答它（给了被问的项，或只补充别的条件，没有提出新的要求）；continue = 「上一结果组」不是「无」，且这句话是在补充、收紧或修改条件，或在评价上一组结果（「这种太远了」「再安静一点的」），没有明确要换一种结果；new = 以上都不是，是一个独立的新要求（包括中途问别的问题）。拿不准时取靠前的那个。两项状态都是「无」时只能是 new。'
+    +'\n23. relation 是 answer 时 intent 填「挂起的追问」的 intent；是 continue 时填「上一结果组」的 intent。不要因为句子里只有房型、预算就填 listing。例外：只对着上一组里某一张卡说的（第二个不错 / 这套太旧了 / 帮我约看第一套）intent 仍填 ref，换一批填 more，撤销 / 重新来填 correction。relation 是 new 时 intent 按规则 13 判；规则 13 末尾的「拿不准时 → listing」也只在 new 时适用。';};
   var _mxApply12=mxApply;mxApply=function(res,t){var r=res&&res.relation;mxRel=(r==='answer'||r==='continue'||r==='new')?r:null;critOwn12=((res&&res.criteria)||[]).filter(Boolean).length;_mxApply12(res,t);};
   /* 把之前那句带的评判标准（如「亲近自然」）和这一句的合在一起，带给接下来新开的回合 */
   function mergeCrit(prev){if(!mxExtra||!prev)return;mxExtra.criteria=uniq12((mxExtra.criteria||[]).concat(prev.criteria||critByText[prev.text]||[])).slice(0,6);mxExtra.ts=Date.now();}
-  /* 接着做一个停在追问上的任务：按更新后的档案重新检查最低条件，齐了出结果，还缺就只问还缺的 */
+  /* 回答了追问：按更新后的档案重新检查最低条件，齐了出结果，还缺就只问还缺的 */
   function resumeTask(U,t,before){var chips=diffChips(before,profile).concat(lastNeg.map(function(a){return {t:avoidLabel(a),neg:!a.thr};}));if(chips.length)showUndo(before,chips);
-    expireAsk(U);if(curLive&&curLive!==U)expireAsk(curLive);mergeCrit(U);U.newKeys=chips.filter(function(c){return c.k;}).map(function(c){return c.k;});U.noNew=!chips.length;mxIntent=null;continueTurn(U);}
+    expireAsk(U);mergeCrit(U);U.newKeys=chips.filter(function(c){return c.k;}).map(function(c){return c.k;});U.noNew=!chips.length;mxIntent=null;continueTurn(U);}
   var _v4After12=v4After;v4After=function(t,before){var la=curLive,rel=mxRel,mi=mxIntent,tt=(''+t).trim();mxRel=null;
     var special=/^\s*(刚才那条|上一条|那条|刚才的)?\s*(撤销|撤回|收回)/.test(tt)||/都不对|重新来|重来|全部清掉|从头来/.test(tt);
     /* 没开模型、模型没给关系、撤销 / 重来、指某张卡、换一批：走原来的流程；只把「追问只挂一轮」补上 */
     if(typeof mxOn!=='function'||!mxOn()||!rel||special||mi==='correction'||mi==='ref'||mi==='more'){_v4After12(t,before);if(la&&la.asks)expireAsk(la);return;}
     askConfirmTurn=null;/* 点「确定」拼出来的句子也一样看模型判的关系，不另走一条路 */
-    if(rel==='answer'&&!la)rel='continue';
-    if(rel==='answer'){resumeTask(la,t,before);return;}
-    if(rel==='continue'){var U=unfin,R=lastRes;
-      if(U&&(mi===U.kind||!R)){resumeTask(U,t,before);return;}
-      if(R){expireAsk(la);pendingAsk=null;mergeCrit(R);lastTurn=R;mxIntent='correction';_v4After12(t,before);return;}}
+    /* 模型说是延续、填的却是追问那个任务的意图：按回答追问算 */
+    if(rel==='continue'&&la&&mi===la.kind&&(!lastRes||lastRes.kind!==mi))rel='answer';
+    if(rel==='answer'&&la){resumeTask(la,t,before);return;}
+    if(rel!=='new'&&lastRes){expireAsk(la);pendingAsk=null;mergeCrit(lastRes);lastTurn=lastRes;mxIntent='correction';_v4After12(t,before);return;}
     /* 新任务（或者没有可延续的东西）：追问到此过期，按模型判出的新意图走 */
     expireAsk(la);pendingAsk=null;mxIntent=mi;_v4After12(t,before);};
 
